@@ -19,6 +19,12 @@ This project is structured so you can develop on macOS with a mock simulator and
 - `self_driving/inference.py`: model-based controller for closed-loop inference.
 - `self_driving/networking/server.py`: central telemetry service backed by SQLite.
 
+## Documentation
+
+- `docs/self_driving_uml_final.md`: full UML/specification package modeled after the ATM final, including use case, class, static relationship, and communication diagrams.
+- `docs/self_driving_use_case.md`: standalone use case diagram and actor/use-case summary.
+- `docs/cli_command_reference.md`: command-line reference with parameters, defaults, and example workflows.
+
 ## Notes
 
 - Use `--backend mock` on your Mac.
