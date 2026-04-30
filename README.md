@@ -178,6 +178,15 @@ This runs the car and sends its telemetry to the fleet server.
 
 The full parameter list is in [docs/cli_command_reference.md](docs/cli_command_reference.md).
 
+## Overnight Helpers
+
+For Windows overnight runs, use:
+
+- `scripts/collect_overnight_windows.bat`: collects many smaller CARLA autopilot segments back-to-back
+- `scripts/train_overnight_segments_windows.bat`: trains one model from all collected `segment_*` folders
+
+The collection script is safer for long runs because completed segments remain usable even if the machine stops during the night.
+
 ## UML Summary In Simple Terms
 
 The formal UML package is in:
