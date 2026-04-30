@@ -1,0 +1,13 @@
+[project]
+name = "carla-self-driving"
+version = "0.1.0"
+description = "Self-driving car project with local mock simulation and CARLA runtime support."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "numpy",
+  "opencv-python",
+  "torch",
+]
+
+[tool.codex]
+target-python = "3.12"
