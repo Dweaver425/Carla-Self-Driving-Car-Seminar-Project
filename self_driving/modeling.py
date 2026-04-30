@@ -11,6 +11,7 @@ TARGET_ORDER = ("throttle", "steering", "brake")
 
 
 def select_torch_device(requested: str | None = None) -> torch.device:
+    # Respect an explicit override first, then pick the fastest available backend.
     if requested:
         return torch.device(requested)
     if torch.backends.mps.is_available():
@@ -28,6 +29,7 @@ def image_to_tensor(image_rgb: np.ndarray) -> torch.Tensor:
 class DrivingModel(nn.Module):
     def __init__(self) -> None:
         super().__init__()
+        # A small CNN keeps training and inference lightweight for seminar-scale experiments.
         self.network = nn.Sequential(
             nn.Conv2d(3, 16, kernel_size=5, stride=2, padding=2),
             nn.ReLU(),
@@ -56,6 +58,7 @@ def load_driving_model(
     if not checkpoint_path.exists():
         raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
 
+    # Load everything onto the active device so inference can run without extra transfers.
     resolved_device = select_torch_device(device)
     checkpoint = torch.load(checkpoint_path, map_location=resolved_device)
     model = DrivingModel()

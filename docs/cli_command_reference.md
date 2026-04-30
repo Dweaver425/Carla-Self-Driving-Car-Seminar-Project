@@ -1,67 +1,64 @@
 # CLI Command Reference
 
-This file documents every current command exposed by [main.py](/Users/dylanweaver/Documents/Projects/Carla_Self_Driving/main.py:1), including parameters, defaults, and what each option means.
+This file explains every command in the project in plain language while still keeping the full parameter list.
 
-## Entry Point
+## The Main Rule
 
-Run every command through:
+You normally run the project through one file:
 
 ```bash
 python3 main.py <command> [options]
 ```
 
-Current commands:
+## What Each Command Means
 
-- `env`
-- `demo`
-- `collect`
-- `train`
-- `infer`
-- `serve`
+| Command | Simple meaning | When to use it |
+| --- | --- | --- |
+| `env` | Check your Python environment | Use first, before running anything else |
+| `demo` | Drive without saving data | Use for quick testing |
+| `collect` | Save a driving dataset | Use before training |
+| `train` | Train the driving model | Use after collecting data |
+| `infer` | Let the trained model drive | Use to test the model |
+| `serve` | Start the fleet server | Use when vehicles should publish telemetry |
 
-## Important CLI Behavior
+## Important Command Behavior
 
-- If you run `python3 main.py` with no command, the program defaults to `demo`.
-- If you run `python3 main.py --some-flag`, the program also treats that as `demo`.
-- `python3 main.py --help` therefore shows `demo --help`, not a top-level command list.
+- If you run `python3 main.py` with no command, the project starts `demo`.
+- If you run `python3 main.py --some-flag`, the project also treats that as `demo`.
+- That means `python3 main.py --help` behaves like `demo --help`.
 
-## Shared Simulation Parameters
+## Shared Driving Parameters
 
-These are used by `demo`, `collect`, and `infer`.
+These flags are used by `demo`, `collect`, and `infer`.
 
-| Flag | Type | Default | Meaning |
+| Flag | Type | Default | Simple meaning |
 | --- | --- | --- | --- |
-| `--backend` | `mock` or `carla` | `mock` | Selects the simulator backend. Use `mock` on your Mac. Use `carla` on the CARLA machine. |
-| `--steps` | `int` | `120` | Number of control loop iterations to run. |
-| `--host` | `string` | `127.0.0.1` | CARLA server host when using `--backend carla`. |
-| `--port` | `int` | `2000` | CARLA server port when using `--backend carla`. |
-| `--spawn-index` | `int` | `0` | Which CARLA spawn point to use for the ego vehicle. |
-| `--vehicle-id` | `string` | `ego-001` | Logical vehicle ID written into telemetry, recordings, and summaries. |
-| `--camera-width` | `int` | `160` | Width of the front camera image in pixels. |
-| `--camera-height` | `int` | `90` | Height of the front camera image in pixels. |
-
-## Shared Run Parameters
-
-These are used by `demo`, `collect`, and `infer`.
-
-| Flag | Type | Default | Meaning |
-| --- | --- | --- | --- |
-| `--target-speed` | `float` | `8.0` | Target speed in meters per second for controllers that use speed regulation. |
-| `--publish-url` | `string` | `None` | Optional coordinator endpoint, such as `http://127.0.0.1:8765/telemetry`. |
-| `--quiet` | flag | `False` | If set, suppresses per-step JSON and only prints the final summary. |
+| `--backend` | `mock` or `carla` | `mock` | Which simulator to use. `mock` is the built-in simple simulator. `carla` is the real CARLA backend. |
+| `--steps` | `int` | `120` | How many loop steps to run. |
+| `--host` | `string` | `127.0.0.1` | CARLA server address when using `carla`. |
+| `--port` | `int` | `2000` | CARLA server port when using `carla`. |
+| `--spawn-index` | `int` | `0` | Which CARLA spawn point to use. |
+| `--vehicle-id` | `string` | `ego-001` | Vehicle name used in logs and telemetry. |
+| `--camera-width` | `int` | `160` | Camera image width in pixels. |
+| `--camera-height` | `int` | `90` | Camera image height in pixels. |
+| `--target-speed` | `float` | `8.0` | Desired speed in meters per second. |
+| `--publish-url` | `string` | `None` | Server URL for telemetry, such as `http://127.0.0.1:8765/telemetry`. |
+| `--quiet` | flag | `False` | Show only the final summary instead of per-step output. |
 
 ## Command: `env`
 
-Purpose:
-- Print local environment details for Python and installed packages.
+### What it does
 
-Syntax:
+Prints environment details so you can confirm the project is set up correctly.
+
+### Command
 
 ```bash
 python3 main.py env
 ```
 
-What it prints:
+### What it prints
+
 - Python version
 - machine architecture
 - NumPy version
@@ -70,36 +67,35 @@ What it prints:
 - MPS availability
 - CARLA API availability
 
-Example:
-
-```bash
-python3 main.py env
-```
-
 ## Command: `demo`
 
-Purpose:
-- Run a driving loop without recording a dataset.
+### What it does
 
-Syntax:
+Runs the driving loop without saving a dataset.
+
+### Good time to use it
+
+Use `demo` when you want to check that the simulator, controller, and loop all work.
+
+### Command
 
 ```bash
-python3 main.py demo [simulation options] [run options] [demo options]
+python3 main.py demo [options]
 ```
 
-Demo-specific parameters:
+### Extra parameters for `demo`
 
-| Flag | Type | Default | Meaning |
+| Flag | Type | Default | Simple meaning |
 | --- | --- | --- | --- |
-| `--controller` | `demo` or `lane` | `demo` | Chooses the controller used during the demo run. |
-| `--show-env` | flag | `False` | Print environment details before starting the run. |
+| `--controller` | `demo` or `lane` | `demo` | Which built-in controller should drive the car. |
+| `--show-env` | flag | `False` | Print environment details before the run starts. |
 
-Controller definitions:
+### Controller choices
 
-- `demo`: simple scripted controller
-- `lane`: rule-based lane-keeping controller
+- `demo`: a simple scripted controller
+- `lane`: a rule-based lane-keeping controller
 
-Example commands:
+### Example commands
 
 ```bash
 python3 main.py demo --backend mock --steps 50
@@ -109,29 +105,35 @@ python3 main.py demo --backend carla --host 127.0.0.1 --port 2000 --steps 100
 
 ## Command: `collect`
 
-Purpose:
-- Record a driving episode to disk for later training.
+### What it does
 
-Syntax:
+Runs the car and saves the drive to disk for training later.
+
+### Good time to use it
+
+Use `collect` before `train`.
+
+### Command
 
 ```bash
-python3 main.py collect [simulation options] [run options] [collect options]
+python3 main.py collect [options]
 ```
 
-Collect-specific parameters:
+### Extra parameters for `collect`
 
-| Flag | Type | Default | Meaning |
+| Flag | Type | Default | Simple meaning |
 | --- | --- | --- | --- |
-| `--controller` | `demo` or `lane` | `None` | If omitted, the system chooses `lane` for `mock` and `demo` for `carla`. |
-| `--output` | `string/path` | `None` | Episode output directory. If omitted, the system creates a timestamped folder under `data/episodes/`. |
-| `--show-env` | flag | `False` | Print environment details before starting the run. |
+| `--controller` | `demo` or `lane` | auto | Which built-in controller collects the data. If omitted, the project chooses one automatically. |
+| `--output` | `string/path` | auto | Where to save the recorded episode. If omitted, the project creates a timestamped folder in `data/episodes/`. |
+| `--show-env` | flag | `False` | Print environment details before the run starts. |
 
-Generated output:
+### Files it creates
+
 - `metadata.json`
 - `manifest.jsonl`
-- `images/` directory
+- `images/`
 
-Example commands:
+### Example commands
 
 ```bash
 python3 main.py collect --backend mock --steps 400
@@ -141,28 +143,33 @@ python3 main.py collect --backend carla --steps 1000 --output data/episodes/carl
 
 ## Command: `train`
 
-Purpose:
-- Train the behavior-cloning model from a collected episode directory.
+### What it does
 
-Syntax:
+Trains the behavior-cloning model from a recorded dataset.
+
+### Good time to use it
+
+Use `train` after you have a dataset from `collect`.
+
+### Command
 
 ```bash
-python3 main.py train --dataset <episode_dir> [training options]
+python3 main.py train --dataset <episode_dir> [options]
 ```
 
-Training parameters:
+### Parameters for `train`
 
-| Flag | Type | Default | Required | Meaning |
+| Flag | Type | Default | Required | Simple meaning |
 | --- | --- | --- | --- | --- |
-| `--dataset` | `string/path` | none | yes | Path to an episode directory created by `collect`. |
-| `--output` | `string/path` | `models/driving_model.pt` | no | Where to save the trained model checkpoint. |
-| `--epochs` | `int` | `5` | no | Number of training epochs. |
-| `--batch-size` | `int` | `16` | no | Batch size used by the data loader. |
-| `--learning-rate` | `float` | `0.001` | no | Optimizer learning rate. |
-| `--val-split` | `float` | `0.2` | no | Fraction of data used for validation. |
-| `--device` | `string` | `None` | no | Torch device override, such as `cpu`, `mps`, or `cuda`. |
+| `--dataset` | `string/path` | none | yes | Folder created by the `collect` command. |
+| `--output` | `string/path` | `models/driving_model.pt` | no | Where to save the trained model. |
+| `--epochs` | `int` | `5` | no | How many full training passes to run. |
+| `--batch-size` | `int` | `16` | no | How many samples to train on at once. |
+| `--learning-rate` | `float` | `0.001` | no | Training step size for the optimizer. |
+| `--val-split` | `float` | `0.2` | no | Part of the dataset reserved for validation. |
+| `--device` | `string` | `None` | no | Force a Torch device such as `cpu`, `mps`, or `cuda`. |
 
-Example commands:
+### Example commands
 
 ```bash
 python3 main.py train --dataset data/episodes/mock_run_01
@@ -172,24 +179,29 @@ python3 main.py train --dataset data/episodes/carla_run_01 --output models/carla
 
 ## Command: `infer`
 
-Purpose:
-- Run the trained model in a closed driving loop.
+### What it does
 
-Syntax:
+Loads a trained model and lets it drive the vehicle.
+
+### Good time to use it
+
+Use `infer` after you have trained a model.
+
+### Command
 
 ```bash
-python3 main.py infer --checkpoint <model_path> [simulation options] [run options] [infer options]
+python3 main.py infer --checkpoint <model_path> [options]
 ```
 
-Infer-specific parameters:
+### Extra parameters for `infer`
 
-| Flag | Type | Default | Required | Meaning |
+| Flag | Type | Default | Required | Simple meaning |
 | --- | --- | --- | --- | --- |
-| `--checkpoint` | `string/path` | none | yes | Path to the trained model checkpoint. |
-| `--output` | `string/path` | `None` | no | If provided, records the inference run as an episode directory. |
-| `--show-env` | flag | `False` | no | Print environment details before starting the run. |
+| `--checkpoint` | `string/path` | none | yes | Path to the trained model file. |
+| `--output` | `string/path` | `None` | no | If set, save the inference run as a new episode. |
+| `--show-env` | flag | `False` | no | Print environment details before the run starts. |
 
-Example commands:
+### Example commands
 
 ```bash
 python3 main.py infer --backend mock --checkpoint models/driving_model.pt
@@ -199,26 +211,31 @@ python3 main.py infer --backend carla --checkpoint models/carla_model.pt --publi
 
 ## Command: `serve`
 
-Purpose:
-- Run the central coordination service that receives telemetry and stores it in SQLite.
+### What it does
 
-Syntax:
+Starts the central fleet coordination server.
+
+### Good time to use it
+
+Use `serve` when you want one or more vehicles to publish telemetry and receive alerts.
+
+### Command
 
 ```bash
-python3 main.py serve [server options]
+python3 main.py serve [options]
 ```
 
-Server parameters:
+### Parameters for `serve`
 
-| Flag | Type | Default | Meaning |
+| Flag | Type | Default | Simple meaning |
 | --- | --- | --- | --- |
-| `--host` | `string` | `127.0.0.1` | Bind address for the HTTP server. |
-| `--port` | `int` | `8765` | Bind port for the HTTP server. |
-| `--db` | `string/path` | `data/fleet/fleet.db` | SQLite database path for telemetry storage. |
-| `--proximity-threshold` | `float` | `8.0` | Distance threshold, in meters, for proximity alerts. |
-| `--stale-after` | `float` | `2.0` | Ignore telemetry older than this many seconds during collision checks. |
+| `--host` | `string` | `127.0.0.1` | Network address the server should listen on. |
+| `--port` | `int` | `8765` | Network port the server should listen on. |
+| `--db` | `string/path` | `data/fleet/fleet.db` | SQLite database file used to store telemetry. |
+| `--proximity-threshold` | `float` | `8.0` | Distance in meters that counts as a proximity warning. |
+| `--stale-after` | `float` | `2.0` | Ignore telemetry older than this many seconds. |
 
-Example commands:
+### Example commands
 
 ```bash
 python3 main.py serve
@@ -226,27 +243,18 @@ python3 main.py serve --host 0.0.0.0 --port 8765
 python3 main.py serve --db data/fleet/test.db --proximity-threshold 5.0 --stale-after 1.5
 ```
 
-## Typical Workflows
+## Two Common Workflows
 
-### Local Mac workflow
+### Workflow 1: Train and test a model
 
 ```bash
 python3 main.py env
-python3 main.py collect --backend mock --steps 400 --output data/episodes/mock_run_01
-python3 main.py train --dataset data/episodes/mock_run_01 --output models/mock_model.pt
-python3 main.py infer --backend mock --checkpoint models/mock_model.pt --steps 100
+python3 main.py collect --backend mock --steps 400 --output data/episodes/run_01
+python3 main.py train --dataset data/episodes/run_01 --output models/driving_model.pt
+python3 main.py infer --backend mock --checkpoint models/driving_model.pt --steps 100
 ```
 
-### CARLA machine workflow
-
-```bash
-python3 main.py demo --backend carla --steps 100
-python3 main.py collect --backend carla --steps 1000 --output data/episodes/carla_run_01
-python3 main.py train --dataset data/episodes/carla_run_01 --output models/carla_model.pt --device cuda
-python3 main.py infer --backend carla --checkpoint models/carla_model.pt --publish-url http://127.0.0.1:8765/telemetry
-```
-
-### Fleet coordination workflow
+### Workflow 2: Run the fleet server
 
 Terminal 1:
 
@@ -260,13 +268,13 @@ Terminal 2:
 python3 main.py infer --backend carla --checkpoint models/carla_model.pt --publish-url http://127.0.0.1:8765/telemetry
 ```
 
-## Quick Definitions
+## Simple Glossary
 
-- `backend`: which simulator implementation to use
-- `checkpoint`: saved trained model file
-- `dataset`: recorded episode folder used for training
-- `episode`: one recorded driving run containing images and manifest data
-- `publish-url`: coordinator server endpoint for telemetry
-- `spawn-index`: CARLA map spawn point number
-- `target-speed`: desired forward speed for rule-based or model-assisted control
-- `telemetry`: shared vehicle state data used for fleet coordination
+- `backend`: the simulator implementation
+- `checkpoint`: the saved trained model file
+- `dataset`: the recorded training folder
+- `episode`: one saved driving run
+- `publish-url`: the server address used for telemetry
+- `spawn-index`: the CARLA start location number
+- `target-speed`: the speed the controller tries to maintain
+- `telemetry`: shared vehicle data such as position, speed, and heading

@@ -1,49 +1,183 @@
 # Carla Self-Driving Car Seminar Project
 
-## Project Overview
+## What This Project Is
 
-This project studies a self-driving vehicle workflow inside the CARLA simulator. The system is designed to:
+This project builds a simple self-driving car workflow in the CARLA simulator.
 
-- collect driving data from a simulated vehicle,
-- train a driving model from recorded episodes,
-- run closed-loop autonomous driving,
-- publish fleet telemetry to a central coordination service,
-- and support collision-awareness through shared vehicle state.
+In plain English, the project does five things:
 
-The project combines autonomous driving, machine learning, simulation, and distributed coordination into one research-oriented pipeline.
+1. It drives a car in simulation.
+2. It saves what the car sees and how it drives.
+3. It trains a model to copy that driving behavior.
+4. It runs the trained model back in the simulator.
+5. It shares vehicle data with a central service to look for possible collisions.
 
-## Project Goals
+This makes the project useful for both:
 
-The main goals of the project are:
+- learning how a self-driving pipeline works,
+- and studying how multiple vehicles might cooperate through shared telemetry.
 
-1. Build a simulated self-driving vehicle pipeline.
-2. Record sensor and control data for training.
-3. Train a behavior-cloning model that predicts steering, throttle, and brake.
-4. Test the trained model in autonomous simulation runs.
-5. Share vehicle telemetry with a central fleet database.
-6. Explore how shared telemetry can improve collision avoidance between multiple vehicles.
+## What The System Actually Does
 
-## System Workflow
+The full workflow is:
 
-The overall workflow of the project is:
+1. Start a simulator.
+2. Run a vehicle with a built-in controller.
+3. Save camera frames, vehicle state, and control commands.
+4. Train a behavior-cloning model from that dataset.
+5. Run the trained model in a closed driving loop.
+6. Optionally send vehicle telemetry to a fleet coordinator.
+7. Generate collision advisories based on nearby vehicles and predicted path overlap.
 
-1. Configure and start a simulation run.
-2. Collect a dataset of images, vehicle state, and control commands.
-3. Train the driving model on the recorded dataset.
-4. Run autonomous inference with the trained model.
-5. Publish telemetry to the fleet coordinator.
-6. Detect possible collisions from nearby vehicles and predicted paths.
-7. Store logs, recordings, and model outputs for analysis.
+## Why This Project Matters
 
-## UML Highlights
+A single self-driving vehicle can only react to what it can sense locally. That works, but it can be limited when traffic is dense, vehicles are close together, or one vehicle blocks another from view.
 
-The full UML package is available in:
+This project adds a second idea on top of the normal self-driving loop: vehicles can share telemetry with a central coordination service. That service can check where vehicles are, where they are heading, and whether their paths may conflict.
 
-- [Full UML Specification](docs/self_driving_uml_final.md)
-- [Use Case Diagram](docs/self_driving_use_case.md)
-- [CLI Command Reference](docs/cli_command_reference.md)
+That is why the project is a good fit for research on cooperative collision awareness.
 
-The most important UML parts are:
+## Main Parts Of The System
+
+### 1. Simulation
+
+The project supports two simulator backends:
+
+- `mock`: a small built-in simulator used for fast testing
+- `carla`: the real CARLA simulator backend
+
+### 2. Data Collection
+
+The system can record:
+
+- front camera images
+- vehicle state
+- steering, throttle, and brake commands
+
+This recorded data becomes the training dataset.
+
+### 3. Model Training
+
+The training pipeline learns a behavior-cloning model. That means the model tries to imitate how the controller drove during data collection.
+
+### 4. Autonomous Inference
+
+After training, the model can drive the vehicle in the simulator by predicting:
+
+- steering
+- throttle
+- brake
+
+### 5. Fleet Coordination
+
+The project can also send telemetry to a central server. That server stores the data in SQLite and returns alerts when vehicles are too close or their predicted paths overlap.
+
+## Quick Start
+
+### 1. Create a Python environment
+
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+```
+
+### 2. Install dependencies
+
+```bash
+pip install numpy opencv-python torch
+```
+
+If you want to use the real CARLA backend, install the CARLA Python API in the same environment.
+
+### 3. Check the environment
+
+```bash
+python3 main.py env
+```
+
+This prints:
+
+- Python version
+- machine architecture
+- NumPy version
+- OpenCV version
+- PyTorch version
+- MPS availability
+- CARLA API availability
+
+## Step-By-Step Usage
+
+### Step 1. Run a simple driving loop
+
+```bash
+python3 main.py demo --backend mock --steps 50
+```
+
+Use this when you just want to see the pipeline run without saving data.
+
+### Step 2. Record a dataset
+
+```bash
+python3 main.py collect --backend mock --steps 400 --output data/episodes/run_01
+```
+
+This creates a dataset folder that contains:
+
+- `metadata.json`
+- `manifest.jsonl`
+- `images/`
+
+### Step 3. Train the model
+
+```bash
+python3 main.py train --dataset data/episodes/run_01 --output models/driving_model.pt
+```
+
+This trains the model and saves it as `models/driving_model.pt`.
+
+### Step 4. Run the trained model
+
+```bash
+python3 main.py infer --backend mock --checkpoint models/driving_model.pt --steps 100
+```
+
+This loads the saved model and lets it drive the vehicle.
+
+### Step 5. Start the fleet coordinator
+
+```bash
+python3 main.py serve --host 0.0.0.0 --port 8765
+```
+
+This starts the central telemetry service.
+
+### Step 6. Drive while publishing telemetry
+
+```bash
+python3 main.py infer --backend mock --checkpoint models/driving_model.pt --publish-url http://127.0.0.1:8765/telemetry
+```
+
+This runs the car and sends its telemetry to the fleet server.
+
+## The Commands You Should Know
+
+- `env`: check Python and package setup
+- `demo`: run the system without saving a dataset
+- `collect`: save a driving dataset
+- `train`: train the driving model
+- `infer`: run the trained model
+- `serve`: start the fleet coordination server
+
+The full parameter list is in [docs/cli_command_reference.md](docs/cli_command_reference.md).
+
+## UML Summary In Simple Terms
+
+The formal UML package is in:
+
+- [docs/self_driving_uml_final.md](docs/self_driving_uml_final.md)
+- [docs/self_driving_use_case.md](docs/self_driving_use_case.md)
+
+The most important parts are:
 
 ### Main Actors
 
@@ -62,201 +196,81 @@ The most important UML parts are:
 - `Receive Collision Advisory`
 - `Store Episode Logs and Metrics`
 
-### Core System Components
+### Core Components
 
-- `SimulationConfig`: stores runtime settings
-- `SimulatorClient`: abstract simulator interface
-- `MockSimulatorClient`: lightweight simulator backend
-- `CarlaSimulatorClient`: CARLA backend
-- `LaneKeepingController`: rule-based controller
-- `ModelController`: trained-model controller
-- `DrivingObservation`: camera frame plus state information
+- `SimulationConfig`: stores run settings
+- `SimulatorClient`: common simulator interface
+- `MockSimulatorClient`: built-in test simulator
+- `CarlaSimulatorClient`: real CARLA simulator adapter
+- `LaneKeepingController`: rule-based driver
+- `ModelController`: trained-model driver
 - `EpisodeRecorder`: saves dataset runs
 - `DrivingDataset`: loads training data
-- `DrivingModel`: neural network for behavior cloning
-- `FleetMessage`: telemetry message passed across the fleet
-- `FleetCoordinator`: central SQLite-backed coordination service
+- `DrivingModel`: neural network used for behavior cloning
+- `FleetMessage`: telemetry sent by each vehicle
+- `FleetCoordinator`: central service that stores data and creates alerts
 
-## Project Structure
+## Project Layout
 
-- `main.py`: main command-line entrypoint
-- `self_driving/simulator/`: simulation backends
-- `self_driving/data/`: dataset loading and recording
-- `self_driving/training.py`: model training pipeline
-- `self_driving/inference.py`: autonomous inference controller
+These are the most important files and folders:
+
+- `main.py`: the only file you normally run directly
+- `self_driving/simulator/`: simulator backends
+- `self_driving/data/`: dataset recording and loading
+- `self_driving/training.py`: training logic
+- `self_driving/inference.py`: trained-model driving logic
 - `self_driving/networking/`: telemetry client, server, and coordinator
-- `docs/`: UML and command documentation
+- `docs/`: UML, command, and project documentation
 
-## Setup
+If you want a full file-by-file explanation, open [docs/file_and_command_guide.md](docs/file_and_command_guide.md).
 
-### 1. Create a Python environment
+## Current Strengths
 
-```bash
-python3.12 -m venv .venv
-source .venv/bin/activate
-```
-
-### 2. Install dependencies
-
-```bash
-pip install numpy opencv-python torch
-```
-
-If you want to use the real CARLA backend, install the CARLA Python API in the same environment.
-
-### 3. Verify the environment
-
-```bash
-python3 main.py env
-```
-
-This prints:
-
-- Python version
-- machine architecture
-- NumPy version
-- OpenCV version
-- PyTorch version
-- CARLA API availability
-
-## How To Use The Project
-
-### Step 1. Run a basic simulation
-
-```bash
-python3 main.py demo --backend mock --steps 50
-```
-
-This runs the control loop without recording a dataset.
-
-### Step 2. Collect a dataset
-
-```bash
-python3 main.py collect --backend mock --steps 400 --output data/episodes/run_01
-```
-
-This creates:
-
-- `data/episodes/run_01/metadata.json`
-- `data/episodes/run_01/manifest.jsonl`
-- `data/episodes/run_01/images/`
-
-### Step 3. Train the model
-
-```bash
-python3 main.py train --dataset data/episodes/run_01 --output models/driving_model.pt
-```
-
-This trains the behavior-cloning model and writes the checkpoint to `models/driving_model.pt`.
-
-### Step 4. Run autonomous inference
-
-```bash
-python3 main.py infer --backend mock --checkpoint models/driving_model.pt --steps 100
-```
-
-This loads the trained model and runs closed-loop autonomous driving.
-
-### Step 5. Start the fleet coordinator
-
-```bash
-python3 main.py serve --host 0.0.0.0 --port 8765
-```
-
-This starts the central telemetry and collision-coordination service backed by SQLite.
-
-### Step 6. Run a vehicle with telemetry publishing
-
-```bash
-python3 main.py infer --backend mock --checkpoint models/driving_model.pt --publish-url http://127.0.0.1:8765/telemetry
-```
-
-This sends vehicle telemetry to the coordinator while the vehicle is driving.
-
-## Important Commands
-
-### Environment
-
-```bash
-python3 main.py env
-```
-
-### Demo run
-
-```bash
-python3 main.py demo --backend mock --controller lane --steps 100
-```
-
-### Collect dataset
-
-```bash
-python3 main.py collect --backend mock --steps 400 --output data/episodes/run_01
-```
-
-### Train model
-
-```bash
-python3 main.py train --dataset data/episodes/run_01 --epochs 5 --batch-size 16
-```
-
-### Inference run
-
-```bash
-python3 main.py infer --backend mock --checkpoint models/driving_model.pt --steps 100
-```
-
-### Start coordinator
-
-```bash
-python3 main.py serve --db data/fleet/fleet.db
-```
-
-## What The Project Currently Supports
+The project already supports:
 
 - dataset recording
 - behavior-cloning training
 - closed-loop inference
-- local or CARLA-backed simulation structure
+- a built-in simulator and a CARLA backend
 - telemetry publishing
 - SQLite-based fleet coordination
-- collision advisory generation from proximity and predicted path overlap
+- collision advisories based on proximity and predicted path overlap
 
-## Current Limitations
+## Current Limits
 
-- the fleet advisory is returned to the client, but it is not yet fused directly into steering or braking decisions
-- data quality depends on the controller used during collection
-- a stronger expert driver is still needed for higher-quality CARLA training data
+The project is a strong starter system, but it is not a finished autonomous driving platform.
 
-## Documentation
+Important limits:
 
-- [Full UML Specification](docs/self_driving_uml_final.md)
-- [Use Case Diagram](docs/self_driving_use_case.md)
-- [CLI Command Reference](docs/cli_command_reference.md)
+- collision advisories are returned to the client, but they are not yet fused directly into steering or braking
+- model quality depends on the quality of the data collected
+- a stronger expert driver will improve real training data
+- the built-in `mock` simulator is useful for software testing, but real evaluation should happen in CARLA
+
+## Best Way To Read This Project
+
+If you are new to the project, read in this order:
+
+1. `README.md`
+2. [docs/file_and_command_guide.md](docs/file_and_command_guide.md)
+3. [docs/cli_command_reference.md](docs/cli_command_reference.md)
+4. [docs/self_driving_use_case.md](docs/self_driving_use_case.md)
+5. [docs/self_driving_uml_final.md](docs/self_driving_uml_final.md)
 
 ## Research Direction
 
-This project is well suited for a paper on cooperative autonomous driving.
+The strongest paper topic for this project is:
 
-The strongest research topic for this codebase is:
+**Evaluating Shared Telemetry for Cooperative Collision Awareness in a CARLA-Based Autonomous Driving System**
 
-**Using Shared Fleet Telemetry to Improve Collision Awareness in a CARLA-Based Autonomous Driving System**
+Why this topic fits:
 
-That topic fits the project because it connects:
+- the project already has a self-driving pipeline
+- the project already has telemetry publishing
+- the project already has a central coordination service
+- the research question is clear: does shared telemetry improve collision awareness?
 
-- self-driving inference,
-- central telemetry exchange,
-- multi-vehicle coordination,
-- and collision reduction.
+The paper outline is available in:
 
-Possible research questions:
-
-1. Does shared vehicle telemetry improve collision awareness compared to local-only control?
-2. How much does predicted-path sharing help compared to sharing only current position and speed?
-3. What are the tradeoffs between centralized coordination and purely local decision-making in CARLA?
-4. How sensitive is collision avoidance performance to stale or delayed telemetry?
-
-Possible alternative paper titles:
-
-- `Cooperative Collision Awareness for Simulated Autonomous Vehicles Using Shared Telemetry`
-- `Centralized Fleet Coordination for Multi-Vehicle Safety in CARLA`
-- `Evaluating Telemetry-Assisted Collision Avoidance in a Self-Driving Simulation Pipeline`
+- [docs/paper_outline.md](docs/paper_outline.md)
+- `docs/paper_outline_google_docs.docx`

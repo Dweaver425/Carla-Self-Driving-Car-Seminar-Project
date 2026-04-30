@@ -43,6 +43,7 @@ class CarlaSimulatorClient(SimulatorClient):
 
         if self.config.synchronous_mode:
             settings = self._world.get_settings()
+            # Step CARLA in lockstep so vehicle state and sensor frames stay deterministic.
             settings.synchronous_mode = True
             settings.fixed_delta_seconds = self.config.fixed_delta_seconds
             self._world.apply_settings(settings)
@@ -162,6 +163,7 @@ class CarlaSimulatorClient(SimulatorClient):
             except queue.Empty as exc:
                 raise RuntimeError("Timed out waiting for CARLA camera frames.") from exc
             image = candidate
+            # Ignore older buffered frames until the camera catches up with the world snapshot.
             if getattr(candidate, "frame", -1) >= target_frame:
                 break
 
@@ -177,6 +179,7 @@ class CarlaSimulatorClient(SimulatorClient):
         self._latest_collision_frame = int(event.frame)
 
     def _consume_collision_flag(self, frame: int) -> bool:
+        # Treat collisions as one-shot events so a single impact does not trigger forever.
         detected = self._latest_collision_frame is not None and self._latest_collision_frame <= frame
         if detected:
             self._latest_collision_frame = None

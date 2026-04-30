@@ -33,6 +33,7 @@ class TelemetryRequestHandler(BaseHTTPRequestHandler):
             self._write_json(404, {"error": "Not found"})
             return
 
+        # Keep the HTTP layer thin: validate the payload, then hand off to the coordinator.
         body = self.rfile.read(int(self.headers.get("Content-Length", "0")))
         try:
             payload = json.loads(body.decode("utf-8"))

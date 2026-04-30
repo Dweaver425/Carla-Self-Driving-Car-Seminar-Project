@@ -30,6 +30,8 @@ def run_loop(
             alerts = publisher.publish(message) if publisher else []
             alerts_count += len(alerts)
 
+            # Recording and telemetry both use the same post-step snapshot so the
+            # dataset, logs, and fleet messages stay aligned frame by frame.
             if recorder is not None:
                 recorder.record(observation, command, message, alerts)
 
@@ -51,6 +53,7 @@ def run_loop(
     finally:
         if recorder is not None:
             recorder.close()
+        # Always tear the simulator down, even if a run fails mid-loop.
         client.teardown()
 
     final_state = observation.state

@@ -31,6 +31,7 @@ class FleetCoordinator:
 
     def ingest(self, message: FleetMessage) -> list[CollisionAlert]:
         with self._lock:
+            # Persist first so the database is the source of truth for both live checks and later analysis.
             self._insert_telemetry(message)
             alerts = self._detect_alerts(message)
             self._insert_alerts(alerts)
@@ -118,6 +119,7 @@ class FleetCoordinator:
 
         latest_by_vehicle: dict[str, sqlite3.Row] = {}
         for row in rows:
+            # The query is already newest-first; keep only the latest snapshot per other vehicle.
             latest_by_vehicle.setdefault(str(row["vehicle_id"]), row)
 
         alerts: list[CollisionAlert] = []
@@ -127,6 +129,7 @@ class FleetCoordinator:
             path_distance = self._minimum_path_distance(message.predicted_path, other_path)
 
             threshold = self.proximity_threshold_m
+            # Predicted path conflicts use a tighter threshold because they are an earlier warning signal.
             if path_distance <= threshold * 0.6:
                 alerts.append(
                     CollisionAlert(

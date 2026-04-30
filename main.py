@@ -263,6 +263,8 @@ def handle_drive(
     controller = make_controller(args, controller_name)
     publisher = maybe_publisher(args.publish_url)
 
+    # All driving modes share the same runtime loop; the only things that change
+    # are the simulator backend, the controller, and whether we record/publish.
     summary = run_loop(
         client=client,
         controller=controller,
@@ -275,6 +277,8 @@ def handle_drive(
 
 
 def handle_collect(args: argparse.Namespace) -> None:
+    # The mock backend has lane signals, so it can use the lane controller.
+    # The CARLA path falls back to the simpler controller until a stronger teacher is added.
     controller_name = args.controller or ("lane" if args.backend == "mock" else "demo")
     output_dir = Path(args.output) if args.output else default_output_dir(
         "episodes", args.backend, controller_name
@@ -309,6 +313,8 @@ def handle_serve(args: argparse.Namespace) -> None:
 
 
 def normalize_argv(argv: list[str]) -> list[str]:
+    # Treat bare flags like `--help` as demo flags so the CLI behaves like a
+    # single-purpose app unless the user names a subcommand explicitly.
     if not argv:
         return ["demo"]
     if argv[0] in COMMAND_NAMES:

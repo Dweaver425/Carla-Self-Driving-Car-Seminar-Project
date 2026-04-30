@@ -51,6 +51,7 @@ class MockSimulatorClient(SimulatorClient):
         self._pose.x += math.cos(heading_rad) * self._speed_mps * delta_t
         self._pose.y += math.sin(heading_rad) * self._speed_mps * delta_t
 
+        # Add a small wobble so controllers have to keep correcting instead of driving a perfect path.
         self._pose.y += math.sin(self._frame / 18.0) * 0.008
         self._pose.yaw_deg += math.sin(self._frame / 20.0) * 0.08
         self._pose.yaw_deg = normalize_angle_deg(self._pose.yaw_deg)
@@ -115,6 +116,7 @@ class MockSimulatorClient(SimulatorClient):
         road_half_width_bottom = int(width * 0.34)
         road_half_width_top = int(width * 0.12)
 
+        # Project a simple trapezoid road so the camera image reacts to offset and heading changes.
         road_polygon = np.array(
             [
                 [road_center_bottom - road_half_width_bottom, height - 1],

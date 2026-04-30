@@ -46,6 +46,7 @@ def train_model(config: TrainingConfig) -> dict[str, Any]:
             final_val_loss = evaluate(model, val_loader, loss_fn, device)
 
     config.output_path.parent.mkdir(parents=True, exist_ok=True)
+    # Save enough metadata with the checkpoint to explain how the model was trained later.
     checkpoint = {
         "model_state": model.state_dict(),
         "target_order": TARGET_ORDER,
@@ -85,6 +86,7 @@ def split_dataset(dataset: Dataset[Any], val_split: float) -> tuple[Dataset[Any]
     val_size = max(1, int(len(dataset) * val_split))
     val_size = min(val_size, len(dataset) - 1)
     train_size = len(dataset) - val_size
+    # Use a fixed seed so repeated training runs split the same way by default.
     return random_split(
         dataset,
         [train_size, val_size],
