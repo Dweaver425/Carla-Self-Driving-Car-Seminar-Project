@@ -14,6 +14,18 @@ class Controller(Protocol):
         """Return the next low-level control command."""
 
 
+class AutopilotController:
+    def on_client_ready(self, client: object) -> None:
+        enable_autopilot = getattr(client, "enable_autopilot", None)
+        if not callable(enable_autopilot):
+            raise ValueError("The autopilot controller is only available with the CARLA backend.")
+        enable_autopilot()
+
+    def command(self, observation: DrivingObservation, step: int) -> ControlCommand:
+        # CARLA's Traffic Manager owns the controls in this mode, so the Python loop only records.
+        return ControlCommand()
+
+
 class DemoController:
     def command(self, observation: DrivingObservation, step: int) -> ControlCommand:
         # Alternate between gentle left and right steering so the demo visibly moves.

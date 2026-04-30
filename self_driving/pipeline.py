@@ -19,13 +19,18 @@ def run_loop(
     print_payload: bool = True,
 ) -> dict[str, Any]:
     client.setup()
-    observation = client.get_observation()
     alerts_count = 0
 
     try:
+        on_client_ready = getattr(controller, "on_client_ready", None)
+        if callable(on_client_ready):
+            on_client_ready(client)
+
+        observation = client.get_observation()
         for step in range(steps):
             command = controller.command(observation, step)
             observation = client.step(command)
+            applied_command = observation.state.control
             message = FleetMessage.from_observation(observation)
             alerts = publisher.publish(message) if publisher else []
             alerts_count += len(alerts)
@@ -33,12 +38,12 @@ def run_loop(
             # Recording and telemetry both use the same post-step snapshot so the
             # dataset, logs, and fleet messages stay aligned frame by frame.
             if recorder is not None:
-                recorder.record(observation, command, message, alerts)
+                recorder.record(observation, applied_command, message, alerts)
 
             if print_payload:
                 payload: dict[str, Any] = {
                     "step": step,
-                    "control": command.as_dict(),
+                    "control": applied_command.as_dict(),
                     "state": observation.state.as_dict(),
                     "fleet_message": message.as_dict(),
                     "collision_detected": observation.collision_detected,

@@ -37,6 +37,7 @@ These flags are used by `demo`, `collect`, and `infer`.
 | `--steps` | `int` | `120` | How many loop steps to run. |
 | `--host` | `string` | `127.0.0.1` | CARLA server address when using `carla`. |
 | `--port` | `int` | `2000` | CARLA server port when using `carla`. |
+| `--tm-port` | `int` | `8000` | CARLA Traffic Manager port used when `autopilot` is active. |
 | `--spawn-index` | `int` | `0` | Which CARLA spawn point to use. |
 | `--vehicle-id` | `string` | `ego-001` | Vehicle name used in logs and telemetry. |
 | `--camera-width` | `int` | `160` | Camera image width in pixels. |
@@ -87,13 +88,14 @@ python3 main.py demo [options]
 
 | Flag | Type | Default | Simple meaning |
 | --- | --- | --- | --- |
-| `--controller` | `demo` or `lane` | `demo` | Which built-in controller should drive the car. |
+| `--controller` | `demo`, `lane`, or `autopilot` | `demo` | Which controller should drive the car. |
 | `--show-env` | flag | `False` | Print environment details before the run starts. |
 
 ### Controller choices
 
 - `demo`: a simple scripted controller
 - `lane`: a rule-based lane-keeping controller
+- `autopilot`: CARLA Traffic Manager drives while the project records the applied controls
 
 ### Example commands
 
@@ -123,7 +125,7 @@ python3 main.py collect [options]
 
 | Flag | Type | Default | Simple meaning |
 | --- | --- | --- | --- |
-| `--controller` | `demo` or `lane` | auto | Which built-in controller collects the data. If omitted, the project chooses one automatically. |
+| `--controller` | `demo`, `lane`, or `autopilot` | auto | Which controller collects the data. If omitted, the project chooses one automatically. |
 | `--output` | `string/path` | auto | Where to save the recorded episode. If omitted, the project creates a timestamped folder in `data/episodes/`. |
 | `--show-env` | flag | `False` | Print environment details before the run starts. |
 
@@ -138,7 +140,7 @@ python3 main.py collect [options]
 ```bash
 python3 main.py collect --backend mock --steps 400
 python3 main.py collect --backend mock --controller lane --output data/episodes/mock_run_01
-python3 main.py collect --backend carla --steps 1000 --output data/episodes/carla_run_01
+python3 main.py collect --backend carla --controller autopilot --steps 1000 --output data/episodes/carla_run_01
 ```
 
 ## Command: `train`

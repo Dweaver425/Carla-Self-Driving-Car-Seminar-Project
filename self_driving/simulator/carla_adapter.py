@@ -17,6 +17,7 @@ class CarlaSimulatorClient(SimulatorClient):
         self.config = config
         self._carla: Any = None
         self._client: Any = None
+        self._traffic_manager: Any = None
         self._world: Any = None
         self._vehicle: Any = None
         self._camera: Any = None
@@ -24,6 +25,7 @@ class CarlaSimulatorClient(SimulatorClient):
         self._image_queue: queue.Queue[Any] = queue.Queue()
         self._latest_collision_frame: int | None = None
         self._original_settings: Any = None
+        self._autopilot_enabled = False
         self._last_command = ControlCommand()
 
     def setup(self) -> None:
@@ -31,8 +33,8 @@ class CarlaSimulatorClient(SimulatorClient):
             import carla
         except ImportError as exc:
             raise RuntimeError(
-                "CARLA Python API is not installed. Use '--backend mock' on macOS and "
-                "install CARLA on the simulation machine before using '--backend carla'."
+                "CARLA Python API is not installed. Install the CARLA Python package "
+                "in this environment before using '--backend carla'."
             ) from exc
 
         self._carla = carla
@@ -88,25 +90,44 @@ class CarlaSimulatorClient(SimulatorClient):
 
         self._tick_world()
 
+    def enable_autopilot(self) -> None:
+        if self._client is None or self._vehicle is None:
+            raise RuntimeError("CARLA backend is not initialized.")
+
+        self._traffic_manager = self._client.get_trafficmanager(self.config.traffic_manager_port)
+        self._traffic_manager.set_synchronous_mode(self.config.synchronous_mode)
+        self._vehicle.set_autopilot(True, self._traffic_manager.get_port())
+        self._autopilot_enabled = True
+        # Let Traffic Manager apply its first control before we start recording.
+        self._tick_world()
+
     def get_observation(self) -> DrivingObservation:
-        return self._capture_observation(self._last_command)
+        return self._capture_observation()
 
     def step(self, command: ControlCommand) -> DrivingObservation:
         if self._vehicle is None or self._world is None or self._carla is None:
             raise RuntimeError("CARLA backend is not initialized.")
 
-        self._vehicle.apply_control(
-            self._carla.VehicleControl(
-                throttle=float(command.throttle),
-                steer=float(command.steering),
-                brake=float(command.brake),
+        if not self._autopilot_enabled:
+            self._vehicle.apply_control(
+                self._carla.VehicleControl(
+                    throttle=float(command.throttle),
+                    steer=float(command.steering),
+                    brake=float(command.brake),
+                )
             )
-        )
-        self._last_command = command
         self._tick_world()
-        return self._capture_observation(command)
+        return self._capture_observation()
 
     def teardown(self) -> None:
+        if self._vehicle is not None and self._autopilot_enabled and self._traffic_manager is not None:
+            self._vehicle.set_autopilot(False, self._traffic_manager.get_port())
+            self._autopilot_enabled = False
+
+        if self._traffic_manager is not None and self.config.synchronous_mode:
+            self._traffic_manager.set_synchronous_mode(False)
+            self._traffic_manager = None
+
         for actor_name in ("_camera", "_collision_sensor", "_vehicle"):
             actor = getattr(self, actor_name)
             if actor is not None:
@@ -125,7 +146,7 @@ class CarlaSimulatorClient(SimulatorClient):
         else:
             self._world.wait_for_tick()
 
-    def _capture_observation(self, command: ControlCommand) -> DrivingObservation:
+    def _capture_observation(self) -> DrivingObservation:
         if self._vehicle is None or self._world is None:
             raise RuntimeError("CARLA backend is not initialized.")
 
@@ -134,6 +155,13 @@ class CarlaSimulatorClient(SimulatorClient):
         velocity = self._vehicle.get_velocity()
         speed_mps = math.sqrt(velocity.x**2 + velocity.y**2 + velocity.z**2)
         image_rgb = self._read_camera_image(snapshot.frame)
+        vehicle_control = self._vehicle.get_control()
+        applied_command = ControlCommand(
+            throttle=float(vehicle_control.throttle),
+            steering=float(vehicle_control.steer),
+            brake=float(vehicle_control.brake),
+        )
+        self._last_command = applied_command
 
         state = VehicleState(
             vehicle_id=self.config.ego_vehicle_id,
@@ -144,7 +172,7 @@ class CarlaSimulatorClient(SimulatorClient):
                 yaw_deg=transform.rotation.yaw,
             ),
             speed_mps=speed_mps,
-            control=command,
+            control=applied_command,
             frame=snapshot.frame,
         )
         return DrivingObservation(

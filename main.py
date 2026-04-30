@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from self_driving.config import SimulationConfig
-from self_driving.control import DemoController, LaneKeepingController
+from self_driving.control import AutopilotController, DemoController, LaneKeepingController
 from self_driving.data.recording import EpisodeRecorder
 from self_driving.inference import ModelController
 from self_driving.networking.client import TelemetryPublisher
@@ -25,7 +25,7 @@ COMMAND_NAMES = {"env", "demo", "collect", "train", "infer", "serve"}
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Self-driving starter project with mock local development and CARLA runtime."
+        description="Self-driving starter project with mock and CARLA simulator backends."
     )
     subparsers = parser.add_subparsers(dest="command")
 
@@ -36,7 +36,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_run_arguments(demo_parser)
     demo_parser.add_argument(
         "--controller",
-        choices=("demo", "lane"),
+        choices=("demo", "lane", "autopilot"),
         default="demo",
         help="Controller used for the demo loop.",
     )
@@ -47,9 +47,9 @@ def build_parser() -> argparse.ArgumentParser:
     add_run_arguments(collect_parser)
     collect_parser.add_argument(
         "--controller",
-        choices=("demo", "lane"),
+        choices=("demo", "lane", "autopilot"),
         default=None,
-        help="Controller used to generate training data. Defaults to 'lane' on mock and 'demo' on CARLA.",
+        help="Controller used to generate training data. Defaults to 'lane' on mock and 'autopilot' on CARLA.",
     )
     collect_parser.add_argument(
         "--output",
@@ -127,11 +127,17 @@ def add_simulation_arguments(parser: argparse.ArgumentParser) -> None:
         "--backend",
         choices=("mock", "carla"),
         default="mock",
-        help="Use 'mock' on macOS and 'carla' on the simulation machine.",
+        help="Select the simulator backend: 'mock' or 'carla'.",
     )
     parser.add_argument("--steps", type=int, default=120, help="Number of control steps to run.")
     parser.add_argument("--host", default="127.0.0.1", help="CARLA host.")
     parser.add_argument("--port", type=int, default=2000, help="CARLA port.")
+    parser.add_argument(
+        "--tm-port",
+        type=int,
+        default=8000,
+        help="CARLA Traffic Manager port used for autopilot.",
+    )
     parser.add_argument(
         "--spawn-index",
         type=int,
@@ -214,6 +220,7 @@ def build_config(args: argparse.Namespace) -> SimulationConfig:
         backend=args.backend,
         host=args.host,
         port=args.port,
+        traffic_manager_port=args.tm_port,
         spawn_index=args.spawn_index,
         steps=args.steps,
         ego_vehicle_id=args.vehicle_id,
@@ -235,6 +242,10 @@ def make_controller(args: argparse.Namespace, controller_name: str) -> Any:
         return DemoController()
     if controller_name == "lane":
         return LaneKeepingController(target_speed_mps=args.target_speed)
+    if controller_name == "autopilot":
+        if args.backend != "carla":
+            raise ValueError("The autopilot controller is only available with the CARLA backend.")
+        return AutopilotController()
     if controller_name == "model":
         return ModelController(
             checkpoint_path=args.checkpoint,
@@ -278,8 +289,8 @@ def handle_drive(
 
 def handle_collect(args: argparse.Namespace) -> None:
     # The mock backend has lane signals, so it can use the lane controller.
-    # The CARLA path falls back to the simpler controller until a stronger teacher is added.
-    controller_name = args.controller or ("lane" if args.backend == "mock" else "demo")
+    # The CARLA path now defaults to native autopilot so recorded labels follow the road.
+    controller_name = args.controller or ("lane" if args.backend == "mock" else "autopilot")
     output_dir = Path(args.output) if args.output else default_output_dir(
         "episodes", args.backend, controller_name
     )

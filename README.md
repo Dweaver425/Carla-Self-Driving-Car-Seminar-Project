@@ -127,6 +127,8 @@ This creates a dataset folder that contains:
 - `manifest.jsonl`
 - `images/`
 
+On CARLA, `collect` now defaults to the built-in autopilot teacher so the saved controls are better than the simple demo driver.
+
 ### Step 3. Train the model
 
 ```bash
@@ -202,6 +204,7 @@ The most important parts are:
 - `SimulatorClient`: common simulator interface
 - `MockSimulatorClient`: built-in test simulator
 - `CarlaSimulatorClient`: real CARLA simulator adapter
+- `AutopilotController`: records data from CARLA's native teacher driver
 - `LaneKeepingController`: rule-based driver
 - `ModelController`: trained-model driver
 - `EpisodeRecorder`: saves dataset runs

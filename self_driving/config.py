@@ -11,6 +11,7 @@ class SimulationConfig:
     backend: BackendName = "mock"
     host: str = "127.0.0.1"
     port: int = 2000
+    traffic_manager_port: int = 8000
     timeout_seconds: float = 10.0
     synchronous_mode: bool = True
     fixed_delta_seconds: float = 0.05

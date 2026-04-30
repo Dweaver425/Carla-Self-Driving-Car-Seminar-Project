@@ -112,6 +112,7 @@ Simple purpose:
 
 Main parts:
 - `Controller`: common interface
+- `AutopilotController`: CARLA-native teacher driver for data collection
 - `DemoController`: simple scripted driver
 - `LaneKeepingController`: rule-based lane follower
 
@@ -384,6 +385,7 @@ Main files involved:
 What happens:
 - the project runs the car
 - saves images and metadata
+- on CARLA, it can use native autopilot so the saved labels follow the road better
 
 Main files involved:
 - `main.py`
@@ -463,6 +465,7 @@ python3 main.py demo --backend mock --controller lane --steps 100
 
 ```bash
 python3 main.py collect --backend mock --steps 400 --output data/episodes/run_01
+python3 main.py collect --backend carla --controller autopilot --steps 1000 --output data/episodes/carla_run_01
 ```
 
 ### Train the model
