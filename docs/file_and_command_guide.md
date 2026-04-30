@@ -163,6 +163,7 @@ Main parts:
 
 Why skilled users care:
 - This is where you tune training behavior, validation, and optimization.
+- It now supports training from multiple episode folders and parallel data-loading workers.
 
 ### `self_driving/pipeline.py`
 
@@ -400,6 +401,7 @@ What happens:
 - the project loads a recorded dataset
 - trains a model
 - saves a checkpoint
+- it can combine multiple recorded runs into one training job
 
 Main files involved:
 - `main.py`
@@ -472,6 +474,7 @@ python3 main.py collect --backend carla --controller autopilot --steps 1000 --ou
 
 ```bash
 python3 main.py train --dataset data/episodes/run_01 --output models/driving_model.pt
+python3 main.py train --dataset data/episodes/run_01 data/episodes/run_02 --output models/driving_model.pt --num-workers 4
 ```
 
 ### Run the trained model

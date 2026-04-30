@@ -6,7 +6,7 @@ from typing import Any
 
 import torch
 from torch import nn
-from torch.utils.data import DataLoader, Dataset, random_split
+from torch.utils.data import ConcatDataset, DataLoader, Dataset, random_split
 
 from self_driving.data.dataset import DrivingDataset
 from self_driving.modeling import DrivingModel, TARGET_ORDER, select_torch_device
@@ -14,21 +14,41 @@ from self_driving.modeling import DrivingModel, TARGET_ORDER, select_torch_devic
 
 @dataclass(slots=True)
 class TrainingConfig:
-    dataset_dir: Path
+    dataset_dirs: list[Path]
     output_path: Path
     epochs: int = 5
     batch_size: int = 16
     learning_rate: float = 1e-3
     val_split: float = 0.2
     device: str | None = None
+    num_workers: int = 0
 
 
 def train_model(config: TrainingConfig) -> dict[str, Any]:
-    dataset = DrivingDataset(config.dataset_dir)
+    datasets = [DrivingDataset(path) for path in config.dataset_dirs]
+    if not datasets:
+        raise ValueError("At least one dataset directory is required for training.")
+
+    dataset: Dataset[tuple[torch.Tensor, torch.Tensor]]
+    if len(datasets) == 1:
+        dataset = datasets[0]
+    else:
+        dataset = ConcatDataset(datasets)
+
+    total_samples = sum(len(item) for item in datasets)
+    image_shape = datasets[0].image_shape
     train_dataset, val_dataset = split_dataset(dataset, config.val_split)
-    train_loader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True)
+    loader_kwargs: dict[str, Any] = {
+        "batch_size": config.batch_size,
+        "num_workers": config.num_workers,
+    }
+    if config.num_workers > 0:
+        # Keep worker processes alive between epochs so image loading stays warm.
+        loader_kwargs["persistent_workers"] = True
+
+    train_loader = DataLoader(train_dataset, shuffle=True, **loader_kwargs)
     val_loader = (
-        DataLoader(val_dataset, batch_size=config.batch_size, shuffle=False)
+        DataLoader(val_dataset, shuffle=False, **loader_kwargs)
         if len(val_dataset) > 0
         else None
     )
@@ -59,9 +79,9 @@ def train_model(config: TrainingConfig) -> dict[str, Any]:
             "device": str(device),
         },
         "dataset": {
-            "path": str(config.dataset_dir),
-            "samples": len(dataset),
-            "image_shape": dataset.image_shape,
+            "paths": [str(path) for path in config.dataset_dirs],
+            "samples": total_samples,
+            "image_shape": image_shape,
         },
     }
     torch.save(checkpoint, config.output_path)
@@ -69,10 +89,11 @@ def train_model(config: TrainingConfig) -> dict[str, Any]:
     return {
         "batch_size": config.batch_size,
         "checkpoint": str(config.output_path),
-        "dataset": str(config.dataset_dir),
+        "datasets": [str(path) for path in config.dataset_dirs],
         "device": str(device),
         "epochs": config.epochs,
-        "samples": len(dataset),
+        "num_workers": config.num_workers,
+        "samples": total_samples,
         "train_loss": final_train_loss,
         "val_loss": final_val_loss,
     }

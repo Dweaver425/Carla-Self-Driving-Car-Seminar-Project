@@ -137,6 +137,12 @@ python3 main.py train --dataset data/episodes/run_01 --output models/driving_mod
 
 This trains the model and saves it as `models/driving_model.pt`.
 
+You can also train from multiple recorded runs at once:
+
+```bash
+python3 main.py train --dataset data/episodes/run_01 data/episodes/run_02 --output models/driving_model.pt --num-workers 4
+```
+
 ### Step 4. Run the trained model
 
 ```bash

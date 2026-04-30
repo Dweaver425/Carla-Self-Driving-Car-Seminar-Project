@@ -163,19 +163,21 @@ python3 main.py train --dataset <episode_dir> [options]
 
 | Flag | Type | Default | Required | Simple meaning |
 | --- | --- | --- | --- | --- |
-| `--dataset` | `string/path` | none | yes | Folder created by the `collect` command. |
+| `--dataset` | `one or more string/path values` | none | yes | One or more folders created by the `collect` command. |
 | `--output` | `string/path` | `models/driving_model.pt` | no | Where to save the trained model. |
 | `--epochs` | `int` | `5` | no | How many full training passes to run. |
 | `--batch-size` | `int` | `16` | no | How many samples to train on at once. |
 | `--learning-rate` | `float` | `0.001` | no | Training step size for the optimizer. |
 | `--val-split` | `float` | `0.2` | no | Part of the dataset reserved for validation. |
 | `--device` | `string` | `None` | no | Force a Torch device such as `cpu`, `mps`, or `cuda`. |
+| `--num-workers` | `int` | `0` | no | Number of parallel workers used to load images during training. |
 
 ### Example commands
 
 ```bash
 python3 main.py train --dataset data/episodes/mock_run_01
 python3 main.py train --dataset data/episodes/mock_run_01 --epochs 10 --batch-size 8
+python3 main.py train --dataset data/episodes/carla_run_01 data/episodes/carla_run_02 --output models/carla_combined.pt --num-workers 4
 python3 main.py train --dataset data/episodes/carla_run_01 --output models/carla_model.pt --device cuda
 ```
 

@@ -61,8 +61,9 @@ def build_parser() -> argparse.ArgumentParser:
     train_parser = subparsers.add_parser("train", help="Train a behavior-cloning model.")
     train_parser.add_argument(
         "--dataset",
+        nargs="+",
         required=True,
-        help="Path to an episode directory created by the collect command.",
+        help="One or more episode directories created by the collect command.",
     )
     train_parser.add_argument(
         "--output",
@@ -82,6 +83,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--device",
         default=None,
         help="Torch device override, for example cpu, mps, or cuda.",
+    )
+    train_parser.add_argument(
+        "--num-workers",
+        type=int,
+        default=0,
+        help="Number of parallel data-loading workers used during training.",
     )
 
     infer_parser = subparsers.add_parser("infer", help="Run a trained model in the loop.")
@@ -301,13 +308,14 @@ def handle_collect(args: argparse.Namespace) -> None:
 def handle_train(args: argparse.Namespace) -> None:
     summary = train_model(
         TrainingConfig(
-            dataset_dir=Path(args.dataset),
+            dataset_dirs=[Path(path) for path in args.dataset],
             output_path=Path(args.output),
             epochs=args.epochs,
             batch_size=args.batch_size,
             learning_rate=args.learning_rate,
             val_split=args.val_split,
             device=args.device,
+            num_workers=args.num_workers,
         )
     )
     print(json.dumps(summary, sort_keys=True))
