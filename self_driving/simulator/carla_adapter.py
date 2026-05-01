@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 import queue
 import time
+from contextlib import suppress
 from typing import Any
 
 import numpy as np
@@ -121,21 +122,26 @@ class CarlaSimulatorClient(SimulatorClient):
 
     def teardown(self) -> None:
         if self._vehicle is not None and self._autopilot_enabled and self._traffic_manager is not None:
-            self._vehicle.set_autopilot(False, self._traffic_manager.get_port())
+            # CARLA can destroy actors during shutdown; treat teardown as best-effort cleanup.
+            with suppress(RuntimeError):
+                self._vehicle.set_autopilot(False, self._traffic_manager.get_port())
             self._autopilot_enabled = False
 
         if self._traffic_manager is not None and self.config.synchronous_mode:
-            self._traffic_manager.set_synchronous_mode(False)
+            with suppress(RuntimeError):
+                self._traffic_manager.set_synchronous_mode(False)
             self._traffic_manager = None
 
         for actor_name in ("_camera", "_collision_sensor", "_vehicle"):
             actor = getattr(self, actor_name)
             if actor is not None:
-                actor.destroy()
+                with suppress(RuntimeError):
+                    actor.destroy()
                 setattr(self, actor_name, None)
 
         if self._world is not None and self._original_settings is not None:
-            self._world.apply_settings(self._original_settings)
+            with suppress(RuntimeError):
+                self._world.apply_settings(self._original_settings)
             self._original_settings = None
 
     def _tick_world(self) -> None:

@@ -489,6 +489,102 @@ python3 main.py infer --backend mock --checkpoint models/driving_model.pt --step
 python3 main.py serve --host 0.0.0.0 --port 8765
 ```
 
+## Practical Training Process Used In This Project
+
+This project used an iterative training process instead of relying on one dataset and one model.
+
+### What was done
+
+1. Several short CARLA autopilot collection runs were recorded.
+2. Those runs were trained together as one combined dataset.
+3. The combined model was tested in CARLA with `infer`.
+4. The results were observed and used to decide whether more data was needed.
+5. After several short-run iterations, a much longer CARLA autopilot run was started to build a stronger dataset.
+
+### The short-run collection pattern
+
+The early CARLA runs were recorded as separate episode folders such as:
+
+- `data/episodes/carla_auto_01`
+- `data/episodes/carla_auto_02`
+- `data/episodes/carla_auto_03`
+- `data/episodes/carla_auto_04`
+- `data/episodes/carla_auto_05`
+
+Saving them separately mattered because it made it easier to:
+
+- keep each test organized
+- combine multiple runs into one model later
+- stop and restart the process without losing older datasets
+
+### The combined training pattern
+
+Those five runs were then trained together:
+
+```bash
+python3 main.py train --dataset data/episodes/carla_auto_01 data/episodes/carla_auto_02 data/episodes/carla_auto_03 data/episodes/carla_auto_04 data/episodes/carla_auto_05 --output models/carla_auto_combined_v2.pt --epochs 8 --batch-size 16 --num-workers 6
+```
+
+Simple meaning:
+
+- one model
+- trained from five recorded runs
+- repeated for 8 epochs
+- using 16 images at a time
+- with 6 helper workers loading data
+
+### The validation pattern
+
+After training, the model was tested in CARLA:
+
+```bash
+python3 main.py infer --backend carla --checkpoint models/carla_auto_combined_v2.pt --steps 200 --spawn-index 1
+```
+
+This was not just for show. It answered an important question:
+
+- is the model actually producing live control outputs that move the vehicle?
+
+Even when the model was imperfect, this test helped separate:
+
+- pipeline problems
+- from weak learned driving behavior
+
+### What was learned from the early tests
+
+The first learned models were active, but not stable enough yet. Observed behaviors included:
+
+- moving only a short distance before stopping
+- driving into a curb or building
+- producing nonzero throttle while still making poor road decisions
+
+This was treated as a sign that:
+
+- the software pipeline was working
+- but the model still needed more and better data
+
+### Why the long collection run came next
+
+After several short-run iterations, the next step was to start a long CARLA autopilot collection run so the model could learn from a much larger and more realistic dataset.
+
+The long-run command used was:
+
+```bash
+python3 main.py collect --backend carla --controller autopilot --steps 700000 --output data/episodes/carla_overnight_01 --quiet
+```
+
+Why this was useful:
+
+- the CARLA autopilot acts as the teacher driver
+- the long run captures more turns, lane following, and traffic behavior
+- `quiet` keeps the terminal output small during unattended runs
+
+### Best way to describe this project process
+
+In one sentence:
+
+- several short CARLA training runs were collected and combined into one model, that model was tested and retrained iteratively, and once the workflow was stable, a long CARLA autopilot run was started to build a stronger dataset for the next training cycle.
+
 ## Best Mental Model
 
 - `main.py` = the control center

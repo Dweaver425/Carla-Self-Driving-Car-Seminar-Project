@@ -143,6 +143,25 @@ You can also train from multiple recorded runs at once:
 python3 main.py train --dataset data/episodes/run_01 data/episodes/run_02 --output models/driving_model.pt --num-workers 4
 ```
 
+### Training settings in plain English
+
+- `--epochs`: how many times the model goes through the full dataset
+- `--batch-size`: how many images the model learns from at one time before it updates itself
+- `--num-workers`: how many helper processes load images in parallel during training
+- `--learning-rate`: how aggressively the optimizer changes the model each update
+- `--device`: where training runs, usually `cpu` or `cuda`
+
+Simple example:
+
+- `--epochs 5 --batch-size 16 --num-workers 6`
+- This means: go through the full dataset 5 times, learn from 16 images at a time, and use 6 helpers to keep data loading moving.
+
+Good starting values:
+
+- quick test: `--epochs 3 --batch-size 16 --num-workers 4`
+- stronger run: `--epochs 8 --batch-size 16 --num-workers 6`
+- if memory is tight: lower `--batch-size` from `16` to `8`
+
 ### Step 4. Run the trained model
 
 ```bash
@@ -167,6 +186,76 @@ python3 main.py infer --backend mock --checkpoint models/driving_model.pt --publ
 
 This runs the car and sends its telemetry to the fleet server.
 
+## Real Project Workflow Used In This Seminar
+
+This project was not built from one dataset and one training run. The practical workflow was iterative:
+
+1. Record a few short CARLA autopilot runs.
+2. Train a model from those runs.
+3. Test the model in CARLA with `infer`.
+4. Observe what failed, such as stopping too early or steering into objects.
+5. Collect more data and retrain a new combined model.
+6. Repeat until the model behavior was stable enough to justify a long collection run.
+
+In practice, the first serious CARLA collection runs were saved as:
+
+- `data/episodes/carla_auto_01`
+- `data/episodes/carla_auto_02`
+- `data/episodes/carla_auto_03`
+- `data/episodes/carla_auto_04`
+- `data/episodes/carla_auto_05`
+
+Those runs were then combined into one training job:
+
+```bash
+python3 main.py train --dataset data/episodes/carla_auto_01 data/episodes/carla_auto_02 data/episodes/carla_auto_03 data/episodes/carla_auto_04 data/episodes/carla_auto_05 --output models/carla_auto_combined_v2.pt --epochs 8 --batch-size 16 --num-workers 6
+```
+
+The model was then tested in CARLA:
+
+```bash
+python3 main.py infer --backend carla --checkpoint models/carla_auto_combined_v2.pt --steps 200 --spawn-index 1
+```
+
+That testing step was important because it showed whether the model was actually alive and making decisions, even if the driving was still unstable.
+
+### Why the process was repeated
+
+The first learned models proved that the pipeline worked, but they were not stable enough yet. Some early behaviors included:
+
+- driving only a short distance and then stopping
+- turning into a curb or building
+- producing valid throttle and steering values, but still making weak decisions
+
+That was treated as a data-quality and dataset-size problem, not as proof that the system was broken.
+
+### Why a 12-hour collection run was used
+
+After several short runs and retraining cycles, the next step was to collect a much larger CARLA autopilot dataset. The idea was:
+
+- short runs prove the pipeline works
+- repeated training stabilizes the workflow
+- a long run gives the model much more realistic driving behavior to learn from
+
+The long collection command used the CARLA autopilot teacher and `quiet` mode so it could run unattended:
+
+```bash
+python3 main.py collect --backend carla --controller autopilot --steps 700000 --output data/episodes/carla_overnight_01 --quiet
+```
+
+This long run was intended to collect many more examples of:
+
+- lane following
+- turns
+- traffic light stops
+- general road behavior
+
+The overall strategy was simple:
+
+- use several smaller runs to validate and improve the model
+- then use one long run to create a stronger training dataset
+- then retrain from that larger dataset
+
 ## The Commands You Should Know
 
 - `env`: check Python and package setup
@@ -186,6 +275,36 @@ For Windows overnight runs, use:
 - `scripts/train_overnight_segments_windows.bat`: trains one model from all collected `segment_*` folders
 
 The collection script is safer for long runs because completed segments remain usable even if the machine stops during the night.
+
+## Using CARLA Traffic With This Project
+
+The safest way to add more realistic road behavior is:
+
+- run one ego vehicle from this project
+- run background traffic from CARLA's default traffic script
+- keep both pointed at the same CARLA host and port
+
+Typical pattern:
+
+### Terminal 1: CARLA traffic script
+
+Run this from the CARLA installation folder if `generate_traffic.py` is available there:
+
+```bash
+python3 PythonAPI/examples/generate_traffic.py --host 127.0.0.1 --port 2000 --number-of-vehicles 30
+```
+
+### Terminal 2: this project
+
+Run your collection or inference command from this project folder:
+
+```bash
+python3 main.py infer --backend carla --checkpoint models/carla_auto_combined_v2.pt --steps 5000 --spawn-index 1
+```
+
+Important rule:
+
+- use one ego vehicle from this project at a time unless the code is explicitly upgraded for multi-ego synchronization
 
 ## UML Summary In Simple Terms
 

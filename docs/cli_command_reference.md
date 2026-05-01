@@ -172,6 +172,34 @@ python3 main.py train --dataset <episode_dir> [options]
 | `--device` | `string` | `None` | no | Force a Torch device such as `cpu`, `mps`, or `cuda`. |
 | `--num-workers` | `int` | `0` | no | Number of parallel workers used to load images during training. |
 
+### Training cheat sheet
+
+| Setting | Plain-English meaning | Good beginner rule |
+| --- | --- | --- |
+| `--epochs` | How many times the model studies the full dataset. | Use `3` for a quick test and `8-10` for a more serious run. |
+| `--batch-size` | How many images the model learns from before it updates itself. | Start with `16`. If memory is tight, use `8`. |
+| `--num-workers` | How many helper processes load images while training is running. | Start with `4` or `6` on a stronger machine. |
+| `--learning-rate` | How big each training update should be. | Keep the default `0.001` unless you have a clear reason to tune it. |
+| `--device` | Which processor trains the model. | Use `cpu` for the safest setup, or `cuda` if PyTorch GPU support is working. |
+| `--val-split` | How much data to hold back for a quick quality check. | Keep `0.2` unless your dataset is very small. |
+
+### How the main training settings work together
+
+- `1 epoch` means the model sees the whole dataset one time.
+- `batch-size 16` means it learns from 16 images at a time during that pass.
+- `num-workers 6` means 6 helpers load those images in parallel.
+
+Example:
+
+- `--epochs 5 --batch-size 16 --num-workers 6`
+- This means: go through the whole dataset 5 times, train on 16 images at a time, and use 6 helpers to keep data loading moving.
+
+Recommended starting points:
+
+- quick test: `--epochs 3 --batch-size 16 --num-workers 4 --device cpu`
+- larger run: `--epochs 8 --batch-size 16 --num-workers 6 --device cpu`
+- GPU run: `--epochs 8 --batch-size 16 --num-workers 6 --device cuda`
+
 ### Example commands
 
 ```bash
@@ -257,6 +285,28 @@ python3 main.py collect --backend mock --steps 400 --output data/episodes/run_01
 python3 main.py train --dataset data/episodes/run_01 --output models/driving_model.pt
 python3 main.py infer --backend mock --checkpoint models/driving_model.pt --steps 100
 ```
+
+### Workflow 2: Run one ego vehicle with CARLA background traffic
+
+Use this when you want your model or autopilot car to drive in a busier CARLA world without running multiple copies of `main.py`.
+
+Terminal 1, from the CARLA installation folder:
+
+```bash
+python3 PythonAPI/examples/generate_traffic.py --host 127.0.0.1 --port 2000 --number-of-vehicles 30
+```
+
+Terminal 2, from this project folder:
+
+```bash
+python3 main.py infer --backend carla --checkpoint models/carla_auto_combined_v2.pt --steps 5000 --spawn-index 1
+```
+
+Important notes:
+
+- both commands must point to the same CARLA host and port
+- use one ego vehicle from this project at a time unless the runtime is upgraded for multi-ego support
+- background traffic is safer than running several copies of `main.py` in the same world
 
 ### Workflow 2: Run the fleet server
 
