@@ -2,11 +2,10 @@
 
 ## Project Context
 
-This project is part of a Seminar research effort at William Paterson University focused on autonomous driving systems. The current research team includes:
+This project is part of a Seminar research  at William Paterson University focused on autonomous driving systems. The current research team includes:
 
 - Dylan Weaver
 - Michael
-- Shan
 
 The project also connects strongly with Dylan Weaver's broader interest in artificial intelligence, machine learning, embedded systems, and long-term graduate research.
 
@@ -170,22 +169,6 @@ The project is intended to support research questions such as:
 - How does the system scale as more vehicles are added?
 - Can cooperative awareness compensate for perception uncertainty?
 
-## Infrastructure And Resource Needs
-
-To support the broader scope of this work, the project proposal includes the need for:
-
-- a Linux-based workstation
-- at least an NVIDIA RTX 2070-class GPU with 8 GB VRAM or better
-- access to computational resources on and off campus
-- funding for small-scale vehicle platforms
-- funding for embedded systems and sensor hardware
-
-Linux is preferred in the formal proposal because it aligns well with:
-
-- CARLA support
-- CUDA workflows
-- robotics tooling
-- embedded Jetson deployment
 
 ## Continuation Beyond This Seminar
 
@@ -217,7 +200,7 @@ Today, this repository represents:
 
 Over time, the intended direction is for this repository and its related research outputs to grow into:
 
-- a complete seminar research platform
+- a complete seminar research project
 - a safer sim-to-real transition workflow
 - a small-scale real-world autonomous vehicle testbed
 - a multi-vehicle cooperative collision-avoidance system
