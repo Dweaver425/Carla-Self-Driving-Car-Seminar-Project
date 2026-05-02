@@ -9,10 +9,15 @@ This guide explains the project in the simplest useful way:
 
 ## The Most Important Rule
 
+This project prefers `py -3.12` in command examples so the Python version is explicit and consistent.
+
+- On Windows, use `py -3.12`
+- On macOS or Linux, replace `py -3.12` with `python3`
+
 You normally run one file:
 
 ```bash
-python3 main.py <command> [options]
+py -3.12 main.py <command> [options]
 ```
 
 Almost every other Python file supports `main.py`.
@@ -361,7 +366,7 @@ Why skilled users care:
 
 ## What Happens When You Run Each Command
 
-### `python3 main.py env`
+### `py -3.12 main.py env`
 
 What happens:
 - the project prints Python and package information
@@ -369,7 +374,7 @@ What happens:
 Main files involved:
 - `main.py`
 
-### `python3 main.py demo`
+### `py -3.12 main.py demo`
 
 What happens:
 - the project starts a simulator
@@ -382,7 +387,7 @@ Main files involved:
 - `self_driving/pipeline.py`
 - `self_driving/simulator/mock.py` or `self_driving/simulator/carla_adapter.py`
 
-### `python3 main.py collect`
+### `py -3.12 main.py collect`
 
 What happens:
 - the project runs the car
@@ -396,7 +401,7 @@ Main files involved:
 - `self_driving/data/recording.py`
 - simulator backend
 
-### `python3 main.py train`
+### `py -3.12 main.py train`
 
 What happens:
 - the project loads a recorded dataset
@@ -410,7 +415,7 @@ Main files involved:
 - `self_driving/modeling.py`
 - `self_driving/training.py`
 
-### `python3 main.py infer`
+### `py -3.12 main.py infer`
 
 What happens:
 - the project loads a checkpoint
@@ -424,7 +429,7 @@ Main files involved:
 - `self_driving/pipeline.py`
 - simulator backend
 
-### `python3 main.py serve`
+### `py -3.12 main.py serve`
 
 What happens:
 - the project starts the fleet coordination server
@@ -455,39 +460,39 @@ They are project modules, not normal entrypoints.
 ### Check the environment
 
 ```bash
-python3 main.py env
+py -3.12 main.py env
 ```
 
 ### Run a simple demo
 
 ```bash
-python3 main.py demo --backend mock --controller lane --steps 100
+py -3.12 main.py demo --backend mock --controller lane --steps 100
 ```
 
 ### Record a dataset
 
 ```bash
-python3 main.py collect --backend mock --steps 400 --output data/episodes/run_01
-python3 main.py collect --backend carla --controller autopilot --steps 1000 --output data/episodes/carla_run_01
+py -3.12 main.py collect --backend mock --steps 400 --output data/episodes/run_01
+py -3.12 main.py collect --backend carla --controller autopilot --steps 1000 --output data/episodes/carla_run_01
 ```
 
 ### Train the model
 
 ```bash
-python3 main.py train --dataset data/episodes/run_01 --output models/driving_model.pt
-python3 main.py train --dataset data/episodes/run_01 data/episodes/run_02 --output models/driving_model.pt --num-workers 4
+py -3.12 main.py train --dataset data/episodes/run_01 --output models/driving_model.pt
+py -3.12 main.py train --dataset data/episodes/run_01 data/episodes/run_02 --output models/driving_model.pt --num-workers 4
 ```
 
 ### Run the trained model
 
 ```bash
-python3 main.py infer --backend mock --checkpoint models/driving_model.pt --steps 100
+py -3.12 main.py infer --backend mock --checkpoint models/driving_model.pt --steps 100
 ```
 
 ### Start the fleet server
 
 ```bash
-python3 main.py serve --host 0.0.0.0 --port 8765
+py -3.12 main.py serve --host 0.0.0.0 --port 8765
 ```
 
 ## Practical Training Process Used In This Project
@@ -523,7 +528,7 @@ Saving them separately mattered because it made it easier to:
 Those five runs were then trained together:
 
 ```bash
-python3 main.py train --dataset data/episodes/carla_auto_01 data/episodes/carla_auto_02 data/episodes/carla_auto_03 data/episodes/carla_auto_04 data/episodes/carla_auto_05 --output models/carla_auto_combined_v2.pt --epochs 8 --batch-size 16 --num-workers 6
+py -3.12 main.py train --dataset data/episodes/carla_auto_01 data/episodes/carla_auto_02 data/episodes/carla_auto_03 data/episodes/carla_auto_04 data/episodes/carla_auto_05 --output models/carla_auto_combined_v2.pt --epochs 8 --batch-size 16 --num-workers 6
 ```
 
 Simple meaning:
@@ -539,7 +544,7 @@ Simple meaning:
 After training, the model was tested in CARLA:
 
 ```bash
-python3 main.py infer --backend carla --checkpoint models/carla_auto_combined_v2.pt --steps 200 --spawn-index 1
+py -3.12 main.py infer --backend carla --checkpoint models/carla_auto_combined_v2.pt --steps 200 --spawn-index 1
 ```
 
 This was not just for show. It answered an important question:
@@ -571,7 +576,7 @@ After several short-run iterations, the next step was to start a long CARLA auto
 The long-run command used was:
 
 ```bash
-python3 main.py collect --backend carla --controller autopilot --steps 700000 --output data/episodes/carla_overnight_01 --quiet
+py -3.12 main.py collect --backend carla --controller autopilot --steps 700000 --output data/episodes/carla_overnight_01 --quiet
 ```
 
 Why this was useful:

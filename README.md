@@ -43,7 +43,6 @@ This repository is part of a Seminar research project at William Paterson Univer
 
 - Dylan Weaver
 - Michael
-- Shan
 
 The current repository scope is focused on the software side of the project:
 
@@ -104,17 +103,24 @@ The project can also send telemetry to a central server. That server stores the 
 
 ## Quick Start
 
+### Command convention
+
+This project prefers `py -3.12` in command examples so the Python version is explicit and consistent.
+
+- On Windows, use `py -3.12`
+- On macOS or Linux, replace `py -3.12` with `python3`
+
 ### 1. Create a Python environment
 
 ```bash
-python3.12 -m venv .venv
+py -3.12 -m venv .venv
 source .venv/bin/activate
 ```
 
 ### 2. Install dependencies
 
 ```bash
-pip install numpy opencv-python torch
+py -3.12 -m pip install numpy opencv-python torch
 ```
 
 If you want to use the real CARLA backend, install the CARLA Python API in the same environment.
@@ -122,7 +128,7 @@ If you want to use the real CARLA backend, install the CARLA Python API in the s
 ### 3. Check the environment
 
 ```bash
-python3 main.py env
+py -3.12 main.py env
 ```
 
 This prints:
@@ -140,7 +146,7 @@ This prints:
 ### Step 1. Run a simple driving loop
 
 ```bash
-python3 main.py demo --backend mock --steps 50
+py -3.12 main.py demo --backend mock --steps 50
 ```
 
 Use this when you just want to see the pipeline run without saving data.
@@ -148,7 +154,7 @@ Use this when you just want to see the pipeline run without saving data.
 ### Step 2. Record a dataset
 
 ```bash
-python3 main.py collect --backend mock --steps 400 --output data/episodes/run_01
+py -3.12 main.py collect --backend mock --steps 400 --output data/episodes/run_01
 ```
 
 This creates a dataset folder that contains:
@@ -162,7 +168,7 @@ On CARLA, `collect` now defaults to the built-in autopilot teacher so the saved 
 ### Step 3. Train the model
 
 ```bash
-python3 main.py train --dataset data/episodes/run_01 --output models/driving_model.pt
+py -3.12 main.py train --dataset data/episodes/run_01 --output models/driving_model.pt
 ```
 
 This trains the model and saves it as `models/driving_model.pt`.
@@ -170,7 +176,7 @@ This trains the model and saves it as `models/driving_model.pt`.
 You can also train from multiple recorded runs at once:
 
 ```bash
-python3 main.py train --dataset data/episodes/run_01 data/episodes/run_02 --output models/driving_model.pt --num-workers 4
+py -3.12 main.py train --dataset data/episodes/run_01 data/episodes/run_02 --output models/driving_model.pt --num-workers 4
 ```
 
 ### Training settings in plain English
@@ -195,7 +201,7 @@ Good starting values:
 ### Step 4. Run the trained model
 
 ```bash
-python3 main.py infer --backend mock --checkpoint models/driving_model.pt --steps 100
+py -3.12 main.py infer --backend mock --checkpoint models/driving_model.pt --steps 100
 ```
 
 This loads the saved model and lets it drive the vehicle.
@@ -203,7 +209,7 @@ This loads the saved model and lets it drive the vehicle.
 ### Step 5. Start the fleet coordinator
 
 ```bash
-python3 main.py serve --host 0.0.0.0 --port 8765
+py -3.12 main.py serve --host 0.0.0.0 --port 8765
 ```
 
 This starts the central telemetry service.
@@ -211,7 +217,7 @@ This starts the central telemetry service.
 ### Step 6. Drive while publishing telemetry
 
 ```bash
-python3 main.py infer --backend mock --checkpoint models/driving_model.pt --publish-url http://127.0.0.1:8765/telemetry
+py -3.12 main.py infer --backend mock --checkpoint models/driving_model.pt --publish-url http://127.0.0.1:8765/telemetry
 ```
 
 This runs the car and sends its telemetry to the fleet server.
@@ -238,13 +244,13 @@ In practice, the first serious CARLA collection runs were saved as:
 Those runs were then combined into one training job:
 
 ```bash
-python3 main.py train --dataset data/episodes/carla_auto_01 data/episodes/carla_auto_02 data/episodes/carla_auto_03 data/episodes/carla_auto_04 data/episodes/carla_auto_05 --output models/carla_auto_combined_v2.pt --epochs 8 --batch-size 16 --num-workers 6
+py -3.12 main.py train --dataset data/episodes/carla_auto_01 data/episodes/carla_auto_02 data/episodes/carla_auto_03 data/episodes/carla_auto_04 data/episodes/carla_auto_05 --output models/carla_auto_combined_v2.pt --epochs 8 --batch-size 16 --num-workers 6
 ```
 
 The model was then tested in CARLA:
 
 ```bash
-python3 main.py infer --backend carla --checkpoint models/carla_auto_combined_v2.pt --steps 200 --spawn-index 1
+py -3.12 main.py infer --backend carla --checkpoint models/carla_auto_combined_v2.pt --steps 200 --spawn-index 1
 ```
 
 That testing step was important because it showed whether the model was actually alive and making decisions, even if the driving was still unstable.
@@ -270,7 +276,7 @@ After several short runs and retraining cycles, the next step was to collect a m
 The long collection command used the CARLA autopilot teacher and `quiet` mode so it could run unattended:
 
 ```bash
-python3 main.py collect --backend carla --controller autopilot --steps 700000 --output data/episodes/carla_overnight_01 --quiet
+py -3.12 main.py collect --backend carla --controller autopilot --steps 700000 --output data/episodes/carla_overnight_01 --quiet
 ```
 
 This long run was intended to collect many more examples of:
@@ -321,7 +327,7 @@ Typical pattern:
 Run this from the CARLA installation folder if `generate_traffic.py` is available there:
 
 ```bash
-python3 PythonAPI/examples/generate_traffic.py --host 127.0.0.1 --port 2000 --number-of-vehicles 30
+py -3.12 PythonAPI/examples/generate_traffic.py --host 127.0.0.1 --port 2000 --number-of-vehicles 30
 ```
 
 ### Terminal 2: this project
@@ -329,7 +335,7 @@ python3 PythonAPI/examples/generate_traffic.py --host 127.0.0.1 --port 2000 --nu
 Run your collection or inference command from this project folder:
 
 ```bash
-python3 main.py infer --backend carla --checkpoint models/carla_auto_combined_v2.pt --steps 5000 --spawn-index 1
+py -3.12 main.py infer --backend carla --checkpoint models/carla_auto_combined_v2.pt --steps 5000 --spawn-index 1
 ```
 
 Important rule:

@@ -4,10 +4,15 @@ This file explains every command in the project in plain language while still ke
 
 ## The Main Rule
 
+This project prefers `py -3.12` in command examples so the Python version is explicit and consistent.
+
+- On Windows, use `py -3.12`
+- On macOS or Linux, replace `py -3.12` with `python3`
+
 You normally run the project through one file:
 
 ```bash
-python3 main.py <command> [options]
+py -3.12 main.py <command> [options]
 ```
 
 ## What Each Command Means
@@ -23,9 +28,9 @@ python3 main.py <command> [options]
 
 ## Important Command Behavior
 
-- If you run `python3 main.py` with no command, the project starts `demo`.
-- If you run `python3 main.py --some-flag`, the project also treats that as `demo`.
-- That means `python3 main.py --help` behaves like `demo --help`.
+- If you run `py -3.12 main.py` with no command, the project starts `demo`.
+- If you run `py -3.12 main.py --some-flag`, the project also treats that as `demo`.
+- That means `py -3.12 main.py --help` behaves like `demo --help`.
 
 ## Shared Driving Parameters
 
@@ -55,7 +60,7 @@ Prints environment details so you can confirm the project is set up correctly.
 ### Command
 
 ```bash
-python3 main.py env
+py -3.12 main.py env
 ```
 
 ### What it prints
@@ -81,7 +86,7 @@ Use `demo` when you want to check that the simulator, controller, and loop all w
 ### Command
 
 ```bash
-python3 main.py demo [options]
+py -3.12 main.py demo [options]
 ```
 
 ### Extra parameters for `demo`
@@ -100,9 +105,9 @@ python3 main.py demo [options]
 ### Example commands
 
 ```bash
-python3 main.py demo --backend mock --steps 50
-python3 main.py demo --backend mock --controller lane --steps 100 --quiet
-python3 main.py demo --backend carla --host 127.0.0.1 --port 2000 --steps 100
+py -3.12 main.py demo --backend mock --steps 50
+py -3.12 main.py demo --backend mock --controller lane --steps 100 --quiet
+py -3.12 main.py demo --backend carla --host 127.0.0.1 --port 2000 --steps 100
 ```
 
 ## Command: `collect`
@@ -118,7 +123,7 @@ Use `collect` before `train`.
 ### Command
 
 ```bash
-python3 main.py collect [options]
+py -3.12 main.py collect [options]
 ```
 
 ### Extra parameters for `collect`
@@ -138,9 +143,9 @@ python3 main.py collect [options]
 ### Example commands
 
 ```bash
-python3 main.py collect --backend mock --steps 400
-python3 main.py collect --backend mock --controller lane --output data/episodes/mock_run_01
-python3 main.py collect --backend carla --controller autopilot --steps 1000 --output data/episodes/carla_run_01
+py -3.12 main.py collect --backend mock --steps 400
+py -3.12 main.py collect --backend mock --controller lane --output data/episodes/mock_run_01
+py -3.12 main.py collect --backend carla --controller autopilot --steps 1000 --output data/episodes/carla_run_01
 ```
 
 ## Command: `train`
@@ -156,7 +161,7 @@ Use `train` after you have a dataset from `collect`.
 ### Command
 
 ```bash
-python3 main.py train --dataset <episode_dir> [options]
+py -3.12 main.py train --dataset <episode_dir> [options]
 ```
 
 ### Parameters for `train`
@@ -203,10 +208,10 @@ Recommended starting points:
 ### Example commands
 
 ```bash
-python3 main.py train --dataset data/episodes/mock_run_01
-python3 main.py train --dataset data/episodes/mock_run_01 --epochs 10 --batch-size 8
-python3 main.py train --dataset data/episodes/carla_run_01 data/episodes/carla_run_02 --output models/carla_combined.pt --num-workers 4
-python3 main.py train --dataset data/episodes/carla_run_01 --output models/carla_model.pt --device cuda
+py -3.12 main.py train --dataset data/episodes/mock_run_01
+py -3.12 main.py train --dataset data/episodes/mock_run_01 --epochs 10 --batch-size 8
+py -3.12 main.py train --dataset data/episodes/carla_run_01 data/episodes/carla_run_02 --output models/carla_combined.pt --num-workers 4
+py -3.12 main.py train --dataset data/episodes/carla_run_01 --output models/carla_model.pt --device cuda
 ```
 
 ## Command: `infer`
@@ -222,7 +227,7 @@ Use `infer` after you have trained a model.
 ### Command
 
 ```bash
-python3 main.py infer --checkpoint <model_path> [options]
+py -3.12 main.py infer --checkpoint <model_path> [options]
 ```
 
 ### Extra parameters for `infer`
@@ -236,9 +241,9 @@ python3 main.py infer --checkpoint <model_path> [options]
 ### Example commands
 
 ```bash
-python3 main.py infer --backend mock --checkpoint models/driving_model.pt
-python3 main.py infer --backend mock --checkpoint models/driving_model.pt --steps 200 --quiet
-python3 main.py infer --backend carla --checkpoint models/carla_model.pt --publish-url http://127.0.0.1:8765/telemetry
+py -3.12 main.py infer --backend mock --checkpoint models/driving_model.pt
+py -3.12 main.py infer --backend mock --checkpoint models/driving_model.pt --steps 200 --quiet
+py -3.12 main.py infer --backend carla --checkpoint models/carla_model.pt --publish-url http://127.0.0.1:8765/telemetry
 ```
 
 ## Command: `serve`
@@ -254,7 +259,7 @@ Use `serve` when you want one or more vehicles to publish telemetry and receive 
 ### Command
 
 ```bash
-python3 main.py serve [options]
+py -3.12 main.py serve [options]
 ```
 
 ### Parameters for `serve`
@@ -270,9 +275,9 @@ python3 main.py serve [options]
 ### Example commands
 
 ```bash
-python3 main.py serve
-python3 main.py serve --host 0.0.0.0 --port 8765
-python3 main.py serve --db data/fleet/test.db --proximity-threshold 5.0 --stale-after 1.5
+py -3.12 main.py serve
+py -3.12 main.py serve --host 0.0.0.0 --port 8765
+py -3.12 main.py serve --db data/fleet/test.db --proximity-threshold 5.0 --stale-after 1.5
 ```
 
 ## Two Common Workflows
@@ -280,10 +285,10 @@ python3 main.py serve --db data/fleet/test.db --proximity-threshold 5.0 --stale-
 ### Workflow 1: Train and test a model
 
 ```bash
-python3 main.py env
-python3 main.py collect --backend mock --steps 400 --output data/episodes/run_01
-python3 main.py train --dataset data/episodes/run_01 --output models/driving_model.pt
-python3 main.py infer --backend mock --checkpoint models/driving_model.pt --steps 100
+py -3.12 main.py env
+py -3.12 main.py collect --backend mock --steps 400 --output data/episodes/run_01
+py -3.12 main.py train --dataset data/episodes/run_01 --output models/driving_model.pt
+py -3.12 main.py infer --backend mock --checkpoint models/driving_model.pt --steps 100
 ```
 
 ### Workflow 2: Run one ego vehicle with CARLA background traffic
@@ -293,13 +298,13 @@ Use this when you want your model or autopilot car to drive in a busier CARLA wo
 Terminal 1, from the CARLA installation folder:
 
 ```bash
-python3 PythonAPI/examples/generate_traffic.py --host 127.0.0.1 --port 2000 --number-of-vehicles 30
+py -3.12 PythonAPI/examples/generate_traffic.py --host 127.0.0.1 --port 2000 --number-of-vehicles 30
 ```
 
 Terminal 2, from this project folder:
 
 ```bash
-python3 main.py infer --backend carla --checkpoint models/carla_auto_combined_v2.pt --steps 5000 --spawn-index 1
+py -3.12 main.py infer --backend carla --checkpoint models/carla_auto_combined_v2.pt --steps 5000 --spawn-index 1
 ```
 
 Important notes:
@@ -313,13 +318,13 @@ Important notes:
 Terminal 1:
 
 ```bash
-python3 main.py serve --host 0.0.0.0 --port 8765
+py -3.12 main.py serve --host 0.0.0.0 --port 8765
 ```
 
 Terminal 2:
 
 ```bash
-python3 main.py infer --backend carla --checkpoint models/carla_model.pt --publish-url http://127.0.0.1:8765/telemetry
+py -3.12 main.py infer --backend carla --checkpoint models/carla_model.pt --publish-url http://127.0.0.1:8765/telemetry
 ```
 
 ## Simple Glossary

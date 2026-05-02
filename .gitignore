@@ -6,3 +6,6 @@ __pycache__/
 ~$*.docx
 /data/
 /models/
+!/models/
+/models/*
+!/models/carla_all_data_mps.pt
