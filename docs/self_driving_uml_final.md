@@ -622,21 +622,21 @@ Scenario Sequences:
 ### Communication Diagram: CONFIGURE / START SIMULATION
 
 ```mermaid
-flowchart LR
-    a["Developer"]
-    b[":main.py CLI"]
-    c[":SimulationConfig"]
-    d[":SimulatorClient"]
-    e[":Controller"]
-    f[":Pipeline"]
+sequenceDiagram
+    actor Developer
+    participant CLI as main.py CLI
+    participant Config as SimulationConfig
+    participant Sim as SimulatorClient
+    participant Controller
+    participant Pipeline
 
-    a -->|1: run command| b
-    b -->|2: build_config()| c
-    b -->|3: make_client()| d
-    b -->|4: make_controller()| e
-    b -->|5: run_loop()| f
-    f -->|5.1: setup()| d
-    f -->|5.2: get_observation()| d
+    Developer->>CLI: 1. run command
+    CLI->>Config: 2. build_config()
+    CLI->>Sim: 3. make_client()
+    CLI->>Controller: 4. make_controller()
+    CLI->>Pipeline: 5. run_loop()
+    Pipeline->>Sim: 5.1. setup()
+    Pipeline->>Sim: 5.2. get_observation()
 ```
 
 Operation Sequence:
@@ -651,23 +651,23 @@ Operation Sequence:
 ### Communication Diagram: COLLECT SENSOR DATASET
 
 ```mermaid
-flowchart LR
-    a["Developer"]
-    b[":main.py CLI"]
-    c[":SimulatorClient"]
-    d[":Controller"]
-    e[":EpisodeRecorder"]
-    f[":FleetMessage"]
-    g["Episode Files"]
+sequenceDiagram
+    actor Developer
+    participant CLI as main.py CLI
+    participant Sim as SimulatorClient
+    participant Controller
+    participant Recorder as EpisodeRecorder
+    participant Message as FleetMessage
+    participant Files as Episode Files
 
-    a -->|1: collect command| b
-    b -->|2: create recorder| e
-    b -->|3: setup()| c
-    c -->|4: get_observation()| d
-    d -->|5: command(observation, step)| c
-    c -->|6: step(command)| f
-    f -->|7: from_observation()| e
-    e -->|8: record(...)| g
+    Developer->>CLI: 1. collect command
+    CLI->>Recorder: 2. create recorder
+    CLI->>Sim: 3. setup()
+    Sim->>Controller: 4. get_observation()
+    Controller->>Sim: 5. command(observation, step)
+    Sim->>Message: 6. step(command)
+    Message->>Recorder: 7. from_observation()
+    Recorder->>Files: 8. record(...)
 ```
 
 Operation Sequence:
@@ -683,22 +683,22 @@ Operation Sequence:
 ### Communication Diagram: TRAIN DRIVING MODEL
 
 ```mermaid
-flowchart LR
-    a["Developer"]
-    b[":main.py CLI"]
-    c[":DrivingDataset"]
-    d[":TrainingConfig"]
-    e[":DrivingModel"]
-    f["Checkpoint File"]
+sequenceDiagram
+    actor Developer
+    participant CLI as main.py CLI
+    participant Dataset as DrivingDataset
+    participant Config as TrainingConfig
+    participant Model as DrivingModel
+    participant Checkpoint as Checkpoint File
 
-    a -->|1: train command| b
-    b -->|2: build TrainingConfig| d
-    d -->|3: load dataset| c
-    b -->|4: split_dataset()| c
-    b -->|5: initialize model| e
-    b -->|6: train_one_epoch()| e
-    b -->|7: evaluate()| e
-    e -->|8: save checkpoint| f
+    Developer->>CLI: 1. train command
+    CLI->>Config: 2. build TrainingConfig
+    Config->>Dataset: 3. load dataset
+    CLI->>Dataset: 4. split_dataset()
+    CLI->>Model: 5. initialize model
+    CLI->>Model: 6. train_one_epoch()
+    CLI->>Model: 7. evaluate()
+    Model->>Checkpoint: 8. save checkpoint
 ```
 
 Operation Sequence:
@@ -714,24 +714,24 @@ Operation Sequence:
 ### Communication Diagram: RUN AUTONOMOUS DRIVE
 
 ```mermaid
-flowchart LR
-    a["Developer"]
-    b[":main.py CLI"]
-    c[":ModelController"]
-    d[":SimulatorClient"]
-    e[":TelemetryPublisher"]
-    f[":EpisodeRecorder"]
-    g[":Coordinator Server"]
+sequenceDiagram
+    actor Developer
+    participant CLI as main.py CLI
+    participant Model as ModelController
+    participant Sim as SimulatorClient
+    participant Publisher as TelemetryPublisher
+    participant Recorder as EpisodeRecorder
+    participant Server as Coordinator Server
 
-    a -->|1: infer command| b
-    b -->|2: load checkpoint| c
-    b -->|3: setup()| d
-    d -->|4: get_observation()| c
-    c -->|5: command(observation, step)| d
-    d -->|6: step(command)| e
-    e -->|7: publish(message)| g
-    g -->|7.1: alerts| e
-    e -->|8: returned alerts| f
+    Developer->>CLI: 1. infer command
+    CLI->>Model: 2. load checkpoint
+    CLI->>Sim: 3. setup()
+    Sim->>Model: 4. get_observation()
+    Model->>Sim: 5. command(observation, step)
+    Sim->>Publisher: 6. step(command)
+    Publisher->>Server: 7. publish(message)
+    Server-->>Publisher: 7.1. alerts
+    Publisher->>Recorder: 8. returned alerts
 ```
 
 Operation Sequence:
@@ -748,23 +748,23 @@ Operation Sequence:
 ### Communication Diagram: COORDINATE FLEET TELEMETRY AND COLLISION ADVISORY
 
 ```mermaid
-flowchart LR
-    a[":Vehicle Client"]
-    b[":TelemetryPublisher"]
-    c[":HTTP Server"]
-    d[":FleetCoordinator"]
-    e["SQLite Fleet DB"]
-    f["Other Vehicle Records"]
-    g[":CollisionAlert"]
+sequenceDiagram
+    participant Client as Vehicle Client
+    participant Publisher as TelemetryPublisher
+    participant Server as HTTP Server
+    participant Coordinator as FleetCoordinator
+    participant DB as SQLite Fleet DB
+    participant Other as Other Vehicle Records
+    participant Alert as CollisionAlert
 
-    a -->|1: from_observation()| b
-    b -->|2: publish(message)| c
-    c -->|3: parse payload| d
-    d -->|4: ingest(message)| e
-    d -->|5: query active vehicles| f
-    d -->|6: generate alert| g
-    g -->|7: return alerts| c
-    c -->|8: HTTP response| b
+    Client->>Publisher: 1. from_observation()
+    Publisher->>Server: 2. publish(message)
+    Server->>Coordinator: 3. parse payload
+    Coordinator->>DB: 4. ingest(message)
+    Coordinator->>Other: 5. query active vehicles
+    Coordinator->>Alert: 6. generate alert
+    Alert->>Server: 7. return alerts
+    Server->>Publisher: 8. HTTP response
 ```
 
 Operation Sequence:
