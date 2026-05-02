@@ -37,6 +37,36 @@ This project adds a second idea on top of the normal self-driving loop: vehicles
 
 That is why the project is a good fit for research on cooperative collision awareness.
 
+## Current Scope And Planned Continuation
+
+This repository is part of a Seminar research project at William Paterson University. The current team is:
+
+- Dylan Weaver
+- Michael
+- Shan
+
+The current repository scope is focused on the software side of the project:
+
+- CARLA-based simulation
+- data collection
+- behavior-cloning model training
+- model inference in simulation
+- telemetry sharing and central coordination experiments
+
+This project is also intended to continue beyond the current Seminar course. The longer-term research direction is to extend the work into graduate-level research and a broader sim-to-real autonomous vehicle platform.
+
+Planned future phases include:
+
+- small-scale RC vehicle testing
+- guardian crash-avoidance overrides during manual driving
+- sensor fusion and perception upgrades
+- reinforcement learning experiments
+- multi-vehicle mesh coordination for collision avoidance
+
+The full proposal and scope document is here:
+
+- [docs/project_scope_proposal.md](docs/project_scope_proposal.md)
+
 ## Main Parts Of The System
 
 ### 1. Simulation
@@ -312,6 +342,7 @@ The formal UML package is in:
 
 - [docs/self_driving_uml_final.md](docs/self_driving_uml_final.md)
 - [docs/self_driving_use_case.md](docs/self_driving_use_case.md)
+- [docs/project_scope_proposal.md](docs/project_scope_proposal.md)
 
 The most important parts are:
 

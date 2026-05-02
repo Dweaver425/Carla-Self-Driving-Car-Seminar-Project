@@ -38,6 +38,7 @@ Almost every other Python file supports `main.py`.
 | --- | --- |
 | `docs/self_driving_uml_final.md` | Full UML and system specification |
 | `docs/self_driving_use_case.md` | Shorter use-case summary |
+| `docs/project_scope_proposal.md` | Research scope, proposal direction, and continuation plan |
 | `docs/cli_command_reference.md` | Every command and parameter |
 | `docs/file_and_command_guide.md` | This file |
 | `docs/paper_outline.md` | Research paper outline in Markdown |
