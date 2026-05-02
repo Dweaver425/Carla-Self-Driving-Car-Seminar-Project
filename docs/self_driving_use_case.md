@@ -63,10 +63,10 @@ flowchart LR
 
 ## Mapping To This Repo
 
-- `Configure / Start Simulation`: [main.py](/Users/dylanweaver/Documents/Projects/Carla_Self_Driving/main.py:26)
-- `Collect Sensor Dataset`: [self_driving/data/recording.py](/Users/dylanweaver/Documents/Projects/Carla_Self_Driving/self_driving/data/recording.py:16)
-- `Train Driving Model`: [self_driving/training.py](/Users/dylanweaver/Documents/Projects/Carla_Self_Driving/self_driving/training.py:15)
-- `Run Autonomous Drive`: [self_driving/inference.py](/Users/dylanweaver/Documents/Projects/Carla_Self_Driving/self_driving/inference.py:12)
-- `Publish Vehicle Telemetry`: [self_driving/networking/client.py](/Users/dylanweaver/Documents/Projects/Carla_Self_Driving/self_driving/networking/client.py:10)
-- `Receive Collision Advisory`: [self_driving/networking/server.py](/Users/dylanweaver/Documents/Projects/Carla_Self_Driving/self_driving/networking/server.py:18)
-- `Store Episode Logs & Metrics`: [self_driving/pipeline.py](/Users/dylanweaver/Documents/Projects/Carla_Self_Driving/self_driving/pipeline.py:13)
+- `Configure / Start Simulation`: [main.py](../main.py#L26)
+- `Collect Sensor Dataset`: [self_driving/data/recording.py](../self_driving/data/recording.py#L16)
+- `Train Driving Model`: [self_driving/training.py](../self_driving/training.py#L15)
+- `Run Autonomous Drive`: [self_driving/inference.py](../self_driving/inference.py#L12)
+- `Publish Vehicle Telemetry`: [self_driving/networking/client.py](../self_driving/networking/client.py#L10)
+- `Receive Collision Advisory`: [self_driving/networking/server.py](../self_driving/networking/server.py#L18)
+- `Store Episode Logs & Metrics`: [self_driving/pipeline.py](../self_driving/pipeline.py#L13)
