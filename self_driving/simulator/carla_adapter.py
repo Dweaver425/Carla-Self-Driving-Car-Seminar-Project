@@ -66,11 +66,19 @@ class CarlaSimulatorClient(SimulatorClient):
         if not spawn_points:
             raise RuntimeError("No spawn points are available in the current CARLA map.")
 
-        transform = spawn_points[self.config.spawn_index % len(spawn_points)]
-        self._vehicle = self._world.try_spawn_actor(blueprint, transform)
+        # Try the requested spawn point first, then fall back across the rest of the map.
+        # This keeps long unattended runs alive when traffic happens to occupy one location.
+        start_index = self.config.spawn_index % len(spawn_points)
+        for offset in range(len(spawn_points)):
+            transform = spawn_points[(start_index + offset) % len(spawn_points)]
+            self._vehicle = self._world.try_spawn_actor(blueprint, transform)
+            if self._vehicle is not None:
+                break
+
         if self._vehicle is None:
             raise RuntimeError(
-                "Failed to spawn the ego vehicle. Try another spawn index or clear the world."
+                "Failed to spawn the ego vehicle after trying all available spawn points. "
+                "Reduce traffic density or clear the world and try again."
             )
 
         camera_bp = blueprint_library.find("sensor.camera.rgb")
