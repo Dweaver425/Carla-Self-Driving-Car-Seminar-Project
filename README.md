@@ -1,50 +1,58 @@
 # Carla Self-Driving Car Seminar Project
 
-## What This Project Is
+This repository contains an autonomous-driving research workflow built around the CARLA simulator, behavior-cloning model training in PyTorch, and shared telemetry experiments for cooperative collision awareness.
 
-This project builds a simple self-driving car workflow in the CARLA simulator.
+In practical terms, the project does four main things:
 
-In plain English, the project does five things:
+1. Runs vehicles in simulation through either a lightweight mock backend or CARLA.
+2. Records camera images, vehicle state, and control commands into reusable datasets.
+3. Trains and evaluates a behavior-cloning driving model.
+4. Publishes vehicle telemetry to a central coordinator that can generate collision advisories.
 
-1. It drives a car in simulation.
-2. It saves what the car sees and how it drives.
-3. It trains a model to copy that driving behavior.
-4. It runs the trained model back in the simulator.
-5. It shares vehicle data with a central service to look for possible collisions.
+## Repository Highlights
 
-This makes the project useful for both:
+- `mock` and `carla` simulator backends for fast local testing and full simulator runs
+- dataset recording pipeline with `metadata.json`, `manifest.jsonl`, and image capture
+- behavior-cloning training and closed-loop inference in PyTorch
+- CARLA autopilot teacher workflow for higher-quality training data
+- SQLite-backed fleet coordination service for shared telemetry experiments
+- UML, proposal, and research documentation for seminar and graduate-level continuation
 
-- learning how a self-driving pipeline works,
-- and studying how multiple vehicles might cooperate through shared telemetry.
+## Current Status
 
-## What The System Actually Does
+The software pipeline is working end-to-end:
 
-The full workflow is:
+- dataset collection works in both mock mode and CARLA
+- model training works on CPU, CUDA, and Apple MPS
+- trained checkpoints can drive in closed-loop inference
+- fleet telemetry can be published to a central coordinator
 
-1. Start a simulator.
-2. Run a vehicle with a built-in controller.
-3. Save camera frames, vehicle state, and control commands.
-4. Train a behavior-cloning model from that dataset.
-5. Run the trained model in a closed driving loop.
-6. Optionally send vehicle telemetry to a fleet coordinator.
-7. Generate collision advisories based on nearby vehicles and predicted path overlap.
+The latest public checkpoint in this repository is:
+
+- `models/carla_all_data_mps.pt`
+
+Current limitations:
+
+- driving quality is still strongly dependent on dataset quality and coverage
+- collision advisories are generated centrally, but not yet fused directly into vehicle control
+- the mock backend is useful for software validation, but CARLA remains the real evaluation target
 
 ## Why This Project Matters
 
-A single self-driving vehicle can only react to what it can sense locally. That works, but it can be limited when traffic is dense, vehicles are close together, or one vehicle blocks another from view.
+A single self-driving vehicle can only react to what it senses locally. That works, but it becomes more limited when traffic is dense, vehicles occlude one another, or multiple actors enter the same space at the same time.
 
-This project adds a second idea on top of the normal self-driving loop: vehicles can share telemetry with a central coordination service. That service can check where vehicles are, where they are heading, and whether their paths may conflict.
+This project explores a second layer on top of the normal autonomy loop: shared telemetry. Vehicles can publish position, heading, speed, and predicted path data to a central coordination service, which can then identify possible path conflicts and generate collision advisories.
 
-That is why the project is a good fit for research on cooperative collision awareness.
+That makes the project a strong fit for research on cooperative collision awareness and sim-to-real autonomous systems.
 
-## Current Scope And Planned Continuation
+## Research Scope And Continuation
 
 This repository is part of a Seminar research project at William Paterson University. The current team is:
 
 - Dylan Weaver
 - Michael
 
-The current repository scope is focused on the software side of the project:
+The repository currently focuses on the software side of the work:
 
 - CARLA-based simulation
 - data collection
@@ -52,7 +60,7 @@ The current repository scope is focused on the software side of the project:
 - model inference in simulation
 - telemetry sharing and central coordination experiments
 
-This project is also intended to continue beyond the current Seminar course. The longer-term research direction is to extend the work into graduate-level research and a broader sim-to-real autonomous vehicle platform.
+This project is intended to continue beyond the current Seminar course. The longer-term direction is to extend the work into graduate-level research and a broader sim-to-real autonomous vehicle platform.
 
 Planned future phases include:
 
@@ -112,8 +120,17 @@ This project prefers `py -3.12` in command examples so the Python version is exp
 
 ### 1. Create a Python environment
 
+On Windows:
+
 ```bash
 py -3.12 -m venv .venv
+.venv\Scripts\activate
+```
+
+On macOS or Linux:
+
+```bash
+python3 -m venv .venv
 source .venv/bin/activate
 ```
 
@@ -309,6 +326,7 @@ For Windows overnight runs, use:
 
 - `scripts/collect_overnight_windows.bat`: collects many smaller CARLA autopilot segments back-to-back
 - `scripts/train_overnight_segments_windows.bat`: trains one model from all collected `segment_*` folders
+- `scripts/package_segmented_dataset.py`: rewrites many `segment_*` folders into one combined dataset TAR for easier transfer and later training
 
 The collection script is safer for long runs because completed segments remain usable even if the machine stops during the night.
 
