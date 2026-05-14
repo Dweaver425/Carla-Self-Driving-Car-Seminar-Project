@@ -44,6 +44,11 @@ def run_loop(
         last_collision_details = observation.collision_details
         closest_obstacle_distance_m: float | None = None
         closest_obstacle_details: dict[str, Any] | None = None
+        lane_metric_samples = 0
+        total_abs_lane_offset_m = 0.0
+        max_abs_lane_offset_m = 0.0
+        total_abs_heading_error_deg = 0.0
+        max_abs_heading_error_deg = 0.0
         blocked_detected = False
         first_blocked_step: int | None = None
         blocked_steps = 0
@@ -100,6 +105,19 @@ def run_loop(
                     closest_obstacle_distance_m = float(obstacle_distance)
                     closest_obstacle_details = observation.obstacle_details
 
+            if observation.lane_offset_m is not None:
+                lane_metric_samples += 1
+                abs_lane_offset = abs(float(observation.lane_offset_m))
+                total_abs_lane_offset_m += abs_lane_offset
+                max_abs_lane_offset_m = max(max_abs_lane_offset_m, abs_lane_offset)
+            if observation.heading_error_deg is not None:
+                abs_heading_error = abs(float(observation.heading_error_deg))
+                total_abs_heading_error_deg += abs_heading_error
+                max_abs_heading_error_deg = max(
+                    max_abs_heading_error_deg,
+                    abs_heading_error,
+                )
+
             commanded_to_move = applied_command.throttle > 0.25 and applied_command.brake < 0.2
             not_moving = observation.state.speed_mps < 0.35 and step_distance_m < 0.03
             if step > 20 and commanded_to_move and not_moving:
@@ -146,6 +164,8 @@ def run_loop(
                     payload["lane_offset_m"] = observation.lane_offset_m
                 if observation.heading_error_deg is not None:
                     payload["heading_error_deg"] = observation.heading_error_deg
+                if observation.lane_details is not None:
+                    payload["lane_details"] = observation.lane_details
                 if alerts:
                     payload["alerts"] = alerts
                 print(json.dumps(payload, sort_keys=True))
@@ -160,6 +180,10 @@ def run_loop(
         "alerts": alerts_count,
         "autopilot_guidance_enabled": autopilot_guidance_enabled,
         "average_brake": total_brake / max(steps, 1),
+        "average_abs_heading_error_deg": total_abs_heading_error_deg
+        / max(lane_metric_samples, 1),
+        "average_abs_lane_offset_m": total_abs_lane_offset_m
+        / max(lane_metric_samples, 1),
         "average_speed_mps": total_speed_mps / max(steps, 1),
         "average_throttle": total_throttle / max(steps, 1),
         "blocked_detected": blocked_detected,
@@ -170,12 +194,16 @@ def run_loop(
         "collision_detected": any_collision_detected or blocked_detected,
         "distance_traveled_m": distance_traveled_m,
         "final_pose": final_state.pose.as_dict(),
+        "final_lane_details": observation.lane_details,
         "final_speed_mps": final_state.speed_mps,
         "first_blocked_step": first_blocked_step,
         "first_collision_details": first_collision_details,
         "first_collision_step": first_collision_step,
         "frames": final_state.frame,
         "last_collision_details": last_collision_details,
+        "lane_metric_samples": lane_metric_samples,
+        "max_abs_heading_error_deg": max_abs_heading_error_deg,
+        "max_abs_lane_offset_m": max_abs_lane_offset_m,
         "max_speed_mps": max_speed_mps,
         "start_pose": start_state.pose.as_dict(),
         "steps": steps,

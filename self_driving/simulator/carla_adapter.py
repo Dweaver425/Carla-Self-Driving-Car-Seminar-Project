@@ -75,7 +75,9 @@ class CarlaSimulatorClient(SimulatorClient):
         # This keeps long unattended runs alive when traffic happens to occupy one location.
         start_index = self.config.spawn_index % len(spawn_points)
         for offset in range(len(spawn_points)):
-            transform = spawn_points[(start_index + offset) % len(spawn_points)]
+            transform = self._adjust_spawn_transform(
+                spawn_points[(start_index + offset) % len(spawn_points)]
+            )
             self._vehicle = self._world.try_spawn_actor(blueprint, transform)
             if self._vehicle is not None:
                 break
@@ -277,6 +279,7 @@ class CarlaSimulatorClient(SimulatorClient):
         speed_mps = math.sqrt(velocity.x**2 + velocity.y**2 + velocity.z**2)
         image_rgb = self._read_camera_image(snapshot.frame)
         vehicle_control = self._vehicle.get_control()
+        lane_offset_m, heading_error_deg, lane_details = self._lane_metrics(transform)
         applied_command = ControlCommand(
             throttle=float(vehicle_control.throttle),
             steering=float(vehicle_control.steer),
@@ -301,10 +304,68 @@ class CarlaSimulatorClient(SimulatorClient):
         return DrivingObservation(
             state=state,
             front_camera_rgb=image_rgb,
+            lane_offset_m=lane_offset_m,
+            heading_error_deg=heading_error_deg,
+            lane_details=lane_details,
             collision_detected=collision_details is not None,
             collision_details=collision_details,
             obstacle_details=obstacle_details,
         )
+
+    def _adjust_spawn_transform(self, transform: Any) -> Any:
+        if self._carla is None:
+            return transform
+
+        yaw_deg = transform.rotation.yaw + self.config.spawn_yaw_offset_deg
+        yaw_rad = math.radians(transform.rotation.yaw + 90.0)
+        lateral_offset = self.config.spawn_lateral_offset_m
+        location = self._carla.Location(
+            x=transform.location.x + math.cos(yaw_rad) * lateral_offset,
+            y=transform.location.y + math.sin(yaw_rad) * lateral_offset,
+            z=transform.location.z,
+        )
+        rotation = self._carla.Rotation(
+            pitch=transform.rotation.pitch,
+            yaw=yaw_deg,
+            roll=transform.rotation.roll,
+        )
+        return self._carla.Transform(location, rotation)
+
+    def _lane_metrics(
+        self,
+        transform: Any,
+    ) -> tuple[float | None, float | None, dict[str, Any] | None]:
+        if self._world is None or self._carla is None:
+            return None, None, None
+
+        try:
+            waypoint = self._world.get_map().get_waypoint(
+                transform.location,
+                project_to_road=True,
+                lane_type=self._carla.LaneType.Driving,
+            )
+        except Exception:
+            return None, None, None
+
+        if waypoint is None:
+            return None, None, None
+
+        waypoint_transform = waypoint.transform
+        right = waypoint_transform.get_right_vector()
+        delta_x = transform.location.x - waypoint_transform.location.x
+        delta_y = transform.location.y - waypoint_transform.location.y
+        lateral_offset_m = (delta_x * right.x) + (delta_y * right.y)
+        heading_error_deg = normalize_angle_deg(
+            transform.rotation.yaw - waypoint_transform.rotation.yaw
+        )
+        lane_details = {
+            "road_id": int(waypoint.road_id),
+            "section_id": int(waypoint.section_id),
+            "lane_id": int(waypoint.lane_id),
+            "lane_width_m": float(waypoint.lane_width),
+            "is_junction": bool(waypoint.is_junction),
+        }
+        return float(lateral_offset_m), float(heading_error_deg), lane_details
 
     def _read_camera_image(self, target_frame: int) -> np.ndarray:
         deadline = time.monotonic() + self.config.timeout_seconds
@@ -399,3 +460,7 @@ class CarlaSimulatorClient(SimulatorClient):
         if latest is None or frame - int(latest["frame"]) > 3:
             return None
         return latest
+
+
+def normalize_angle_deg(value: float) -> float:
+    return ((value + 180.0) % 360.0) - 180.0

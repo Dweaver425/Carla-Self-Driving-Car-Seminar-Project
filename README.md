@@ -293,6 +293,7 @@ py -3.12 main.py infer --backend carla --autopilot-model --steps 3000 --spawn-in
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 300 --spawn-index 1 --target-speed 4 --spectator chase
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 1000 --spawn-index 1 --target-speed 8 --spectator chase --autopilot-guide --output data/episodes/guided_spawn1_chase_01
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 3000 --spawn-index 1 --target-speed 8 --spectator hood
+py -3.12 main.py infer --backend carla --checkpoint models/carla_lane_finetuned_cuda.pt --steps 4000 --spawn-index 1 --target-speed 4 --spectator chase --autopilot-guide --spawn-lateral-offset 1.0 --spawn-yaw-offset 8 --output data/episodes/recovery_right_yaw_01
 ```
 
 Output to check:
@@ -300,11 +301,14 @@ Output to check:
 - `carla_collision_detected`
 - `blocked_detected`
 - `closest_obstacle_details`
+- `average_abs_lane_offset_m`
+- `max_abs_lane_offset_m`
 - `average_abs_control_delta` when using `--autopilot-guide`
 
 Use `--spectator chase` for third person. Use `--spectator hood` for a first-person-style view.
 Use `--autopilot-model` when you want CARLA's proven Traffic Manager behavior as the active model.
 Use `--autopilot-guide` when you want CARLA autopilot to drive safely while the model is compared against it.
+Use `--spawn-lateral-offset` and `--spawn-yaw-offset` with `--autopilot-guide` to collect recovery examples for a model that drifts out of its lane.
 
 ### Command: `serve`
 

@@ -183,6 +183,18 @@ def add_simulation_arguments(parser: argparse.ArgumentParser) -> None:
         help="Spawn point index when using the CARLA backend.",
     )
     parser.add_argument(
+        "--spawn-lateral-offset",
+        type=float,
+        default=0.0,
+        help="Move the CARLA spawn point sideways in meters. Useful for recovery-data collection.",
+    )
+    parser.add_argument(
+        "--spawn-yaw-offset",
+        type=float,
+        default=0.0,
+        help="Rotate the CARLA spawn point in degrees. Useful for recovery-data collection.",
+    )
+    parser.add_argument(
         "--vehicle-id",
         default="ego-001",
         help="Logical vehicle id used in recordings and telemetry.",
@@ -266,6 +278,8 @@ def build_config(args: argparse.Namespace) -> SimulationConfig:
         port=args.port,
         traffic_manager_port=args.tm_port,
         spawn_index=args.spawn_index,
+        spawn_lateral_offset_m=args.spawn_lateral_offset,
+        spawn_yaw_offset_deg=args.spawn_yaw_offset,
         steps=args.steps,
         ego_vehicle_id=args.vehicle_id,
         camera_width=args.camera_width,

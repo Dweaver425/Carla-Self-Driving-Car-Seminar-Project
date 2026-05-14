@@ -65,6 +65,7 @@ class EpisodeRecorder:
             ),
             "lane_offset_m": observation.lane_offset_m,
             "heading_error_deg": observation.heading_error_deg,
+            "lane_details": observation.lane_details,
             "collision_detected": observation.collision_detected,
             "collision_details": observation.collision_details,
             "obstacle_details": observation.obstacle_details,

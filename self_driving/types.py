@@ -45,6 +45,7 @@ class DrivingObservation:
     front_camera_rgb: np.ndarray
     lane_offset_m: float | None = None
     heading_error_deg: float | None = None
+    lane_details: dict[str, Any] | None = None
     collision_detected: bool = False
     collision_details: dict[str, Any] | None = None
     obstacle_details: dict[str, Any] | None = None

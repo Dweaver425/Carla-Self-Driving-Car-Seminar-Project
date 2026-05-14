@@ -19,6 +19,8 @@ class SimulationConfig:
     ego_vehicle_id: str = "ego-001"
     vehicle_blueprint: str = "vehicle.tesla.model3"
     spawn_index: int = 0
+    spawn_lateral_offset_m: float = 0.0
+    spawn_yaw_offset_deg: float = 0.0
     steps: int = 120
     camera_width: int = 160
     camera_height: int = 90

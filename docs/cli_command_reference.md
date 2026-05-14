@@ -60,6 +60,8 @@ These flags are used by `demo`, `collect`, and `infer`.
 | `--port` | `int` | `2000` | CARLA server port when using `carla`. |
 | `--tm-port` | `int` | `8000` | CARLA Traffic Manager port used when `autopilot` is active. |
 | `--spawn-index` | `int` | `0` | Which CARLA spawn point to use. |
+| `--spawn-lateral-offset` | `float` | `0.0` | Move the CARLA spawn sideways in meters. Use this to collect lane-recovery data. |
+| `--spawn-yaw-offset` | `float` | `0.0` | Rotate the CARLA spawn in degrees. Use this to collect steering-recovery data. |
 | `--vehicle-id` | `string` | `ego-001` | Vehicle name used in logs and telemetry. |
 | `--camera-width` | `int` | `160` | Camera image width in pixels. |
 | `--camera-height` | `int` | `90` | Camera image height in pixels. |
@@ -295,7 +297,8 @@ The final inference summary includes run-quality metrics such as
 sticky for the full run: if the car hits something and later stops reporting a
 live collision event, the final `collision_detected` value still stays `true`.
 The summary can also include `first_collision_details`,
-`last_collision_details`, `closest_obstacle_details`, and `blocked_detected`.
+`last_collision_details`, `closest_obstacle_details`, `blocked_detected`,
+`average_abs_lane_offset_m`, and `max_abs_lane_offset_m`.
 With `--autopilot-model`, CARLA Traffic Manager owns the driving controls.
 With `--autopilot-guide`, the summary also includes
 `average_abs_control_delta` and `max_abs_control_delta`, which show how far the
@@ -405,6 +408,14 @@ For a 30-sim-minute guided data collection run, use:
 
 ```bash
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 36000 --spawn-index 1 --target-speed 8 --spectator chase --autopilot-guide --output data/episodes/traffic_ped_guided_30min --quiet
+```
+
+For lane-recovery data, start the ego vehicle slightly offset or angled, then
+let `--autopilot-guide` recover while the model predicts in the background:
+
+```bash
+py -3.12 main.py infer --backend carla --checkpoint models/carla_lane_finetuned_cuda.pt --steps 4000 --spawn-index 1 --target-speed 4 --spectator chase --autopilot-guide --spawn-lateral-offset 1.0 --spawn-yaw-offset 8 --output data/episodes/recovery_right_yaw_01
+py -3.12 main.py infer --backend carla --checkpoint models/carla_lane_finetuned_cuda.pt --steps 4000 --spawn-index 1 --target-speed 4 --spectator chase --autopilot-guide --spawn-lateral-offset -1.0 --spawn-yaw-offset -8 --output data/episodes/recovery_left_yaw_01
 ```
 
 Or run the Windows helper:
