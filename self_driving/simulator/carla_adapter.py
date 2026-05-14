@@ -32,6 +32,7 @@ class CarlaSimulatorClient(SimulatorClient):
         self._original_settings: Any = None
         self._autopilot_enabled = False
         self._last_command = ControlCommand()
+        self._closed = False
 
     def setup(self) -> None:
         try:
@@ -148,28 +149,74 @@ class CarlaSimulatorClient(SimulatorClient):
         return self._capture_observation()
 
     def teardown(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
+
         if self._vehicle is not None and self._autopilot_enabled and self._traffic_manager is not None:
             # CARLA can destroy actors during shutdown; treat teardown as best-effort cleanup.
-            with suppress(RuntimeError):
+            with suppress(Exception):
                 self._vehicle.set_autopilot(False, self._traffic_manager.get_port())
             self._autopilot_enabled = False
+            self._teardown_tick()
+
+        sensor_names = ("_camera", "_collision_sensor", "_obstacle_sensor")
+        for actor_name in sensor_names:
+            self._stop_actor_listener(getattr(self, actor_name))
+        self._teardown_tick()
+
+        for actor_name in sensor_names:
+            self._destroy_actor(actor_name)
+        self._teardown_tick()
+
+        self._destroy_actor("_vehicle")
 
         if self._traffic_manager is not None and self.config.synchronous_mode:
-            with suppress(RuntimeError):
+            with suppress(Exception):
                 self._traffic_manager.set_synchronous_mode(False)
             self._traffic_manager = None
 
-        for actor_name in ("_camera", "_collision_sensor", "_obstacle_sensor", "_vehicle"):
-            actor = getattr(self, actor_name)
-            if actor is not None:
-                with suppress(RuntimeError):
-                    actor.destroy()
-                setattr(self, actor_name, None)
-
         if self._world is not None and self._original_settings is not None:
-            with suppress(RuntimeError):
+            with suppress(Exception):
                 self._world.apply_settings(self._original_settings)
             self._original_settings = None
+
+        self._clear_queues()
+
+    def _stop_actor_listener(self, actor: Any) -> None:
+        if actor is None or not hasattr(actor, "stop"):
+            return
+        with suppress(Exception):
+            actor.stop()
+
+    def _destroy_actor(self, actor_name: str) -> None:
+        actor = getattr(self, actor_name)
+        if actor is None:
+            return
+        with suppress(Exception):
+            if hasattr(actor, "is_alive") and not actor.is_alive:
+                return
+            actor.destroy()
+        setattr(self, actor_name, None)
+
+    def _teardown_tick(self) -> None:
+        if self._world is None:
+            return
+        with suppress(Exception):
+            if self.config.synchronous_mode:
+                self._world.tick()
+            else:
+                self._world.wait_for_tick()
+
+    def _clear_queues(self) -> None:
+        self._pending_collision_events.clear()
+        self._pending_obstacle_events.clear()
+        for event_queue in (self._image_queue, self._collision_events, self._obstacle_events):
+            while True:
+                try:
+                    event_queue.get_nowait()
+                except queue.Empty:
+                    break
 
     def _tick_world(self) -> None:
         if self._world is None:
