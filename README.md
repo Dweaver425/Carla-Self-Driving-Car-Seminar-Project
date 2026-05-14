@@ -256,6 +256,7 @@ Example commands:
 py -3.12 main.py train --dataset data/episodes/run_01 --output models/driving_model.pt
 py -3.12 main.py train --dataset data/episodes/run_01 data/episodes/run_02 --output models/driving_model.pt --epochs 8 --batch-size 16 --num-workers 6
 py -3.12 main.py train --dataset data/raw/carla_weekend_combined/carla_weekend_combined --output models/carla_weekend_tar_index_cuda.pt --device cuda --epochs 4 --batch-size 256 --num-workers 8 --val-split 0.1 --log-interval 100
+py -3.12 main.py train --init-checkpoint models/carla_weekend_traffic_ped_1h_balanced_cuda.pt --dataset data/episodes/lane_correction_spawn1_speed4_01 data/episodes/lane_corrected_guided_test_01 --output models/carla_lane_finetuned_cuda.pt --device cuda --epochs 3 --batch-size 128 --num-workers 8 --learning-rate 0.0001 --val-split 0.1 --log-interval 100
 ```
 
 Output to check:
@@ -269,6 +270,7 @@ Training settings in plain English:
 - `--batch-size`: how many images the model learns from at one time before it updates itself
 - `--num-workers`: how many helper processes load images in parallel during training
 - `--learning-rate`: how aggressively the optimizer changes the model each update
+- `--init-checkpoint`: starts from an existing model so new data fine-tunes it instead of replacing everything it learned
 - `--device`: where training runs, usually `cpu` or `cuda`
 
 ### Command: `infer`

@@ -70,6 +70,11 @@ def build_parser() -> argparse.ArgumentParser:
         default="models/driving_model.pt",
         help="Checkpoint path for the trained model.",
     )
+    train_parser.add_argument(
+        "--init-checkpoint",
+        default=None,
+        help="Optional checkpoint to start from before training. Use this for fine-tuning.",
+    )
     train_parser.add_argument("--epochs", type=int, default=5, help="Number of training epochs.")
     train_parser.add_argument("--batch-size", type=int, default=16, help="Batch size.")
     train_parser.add_argument("--learning-rate", type=float, default=1e-3, help="Optimizer LR.")
@@ -349,6 +354,9 @@ def handle_train(args: argparse.Namespace) -> None:
         TrainingConfig(
             dataset_dirs=[Path(path) for path in args.dataset],
             output_path=Path(args.output),
+            init_checkpoint_path=Path(args.init_checkpoint)
+            if args.init_checkpoint is not None
+            else None,
             epochs=args.epochs,
             batch_size=args.batch_size,
             learning_rate=args.learning_rate,

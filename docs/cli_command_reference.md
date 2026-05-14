@@ -193,6 +193,7 @@ py -3.12 main.py train --dataset <episode_dir> [options]
 | --- | --- | --- | --- | --- |
 | `--dataset` | `one or more string/path values` | none | yes | One or more folders created by the `collect` command. |
 | `--output` | `string/path` | `models/driving_model.pt` | no | Where to save the trained model. |
+| `--init-checkpoint` | `string/path` | none | no | Existing checkpoint to start from before training. Use this to fine-tune instead of training from scratch. |
 | `--epochs` | `int` | `5` | no | How many full training passes to run. |
 | `--batch-size` | `int` | `16` | no | How many samples to train on at once. |
 | `--learning-rate` | `float` | `0.001` | no | Training step size for the optimizer. |
@@ -209,6 +210,7 @@ py -3.12 main.py train --dataset <episode_dir> [options]
 | `--batch-size` | How many images the model learns from before it updates itself. | Start with `16`. If memory is tight, use `8`. |
 | `--num-workers` | How many helper processes load images while training is running. | Start with `4` or `6` on a stronger machine. |
 | `--learning-rate` | How big each training update should be. | Keep the default `0.001` unless you have a clear reason to tune it. |
+| `--init-checkpoint` | Existing model weights to start from. | Use this when correcting a mostly good model with new guided data. |
 | `--device` | Which processor trains the model. | Use `cpu` for the safest setup, or `cuda` if PyTorch GPU support is working. |
 | `--val-split` | How much data to hold back for a quick quality check. | Keep `0.2` unless your dataset is very small. |
 
@@ -229,6 +231,7 @@ Recommended starting points:
 - larger run: `--epochs 8 --batch-size 16 --num-workers 6 --device cpu`
 - GPU run: `--epochs 8 --batch-size 16 --num-workers 6 --device cuda`
 - large CUDA TAR-index run: `--epochs 4 --batch-size 256 --num-workers 8 --device cuda --val-split 0.1`
+- fine-tune correction run: `--init-checkpoint models/carla_weekend_traffic_ped_1h_balanced_cuda.pt --epochs 3 --learning-rate 0.0001 --device cuda`
 
 ### Example commands
 
@@ -238,6 +241,7 @@ py -3.12 main.py train --dataset data/episodes/mock_run_01 --epochs 10 --batch-s
 py -3.12 main.py train --dataset data/episodes/carla_run_01 data/episodes/carla_run_02 --output models/carla_combined.pt --num-workers 4
 py -3.12 main.py train --dataset data/episodes/carla_run_01 --output models/carla_run_01_cuda.pt --device cuda
 py -3.12 main.py train --dataset data/raw/carla_weekend_combined/carla_weekend_combined --output models/carla_weekend_tar_index_cuda.pt --device cuda --epochs 4 --batch-size 256 --num-workers 8 --val-split 0.1 --log-interval 100
+py -3.12 main.py train --init-checkpoint models/carla_weekend_traffic_ped_1h_balanced_cuda.pt --dataset data/episodes/lane_correction_spawn1_speed4_01 data/episodes/lane_corrected_guided_test_01 --output models/carla_lane_finetuned_cuda.pt --device cuda --epochs 3 --batch-size 128 --num-workers 8 --learning-rate 0.0001 --val-split 0.1 --log-interval 100
 ```
 
 ### Output to check

@@ -17,6 +17,7 @@ from self_driving.modeling import DrivingModel, TARGET_ORDER, select_torch_devic
 class TrainingConfig:
     dataset_dirs: list[Path]
     output_path: Path
+    init_checkpoint_path: Path | None = None
     epochs: int = 5
     batch_size: int = 16
     learning_rate: float = 1e-3
@@ -64,6 +65,11 @@ def train_model(config: TrainingConfig) -> dict[str, Any]:
     )
 
     model = DrivingModel().to(device)
+    init_checkpoint: dict[str, Any] | None = None
+    if config.init_checkpoint_path is not None:
+        init_checkpoint = torch.load(config.init_checkpoint_path, map_location=device)
+        model.load_state_dict(init_checkpoint["model_state"])
+
     if device.type == "cuda":
         model = model.to(memory_format=torch.channels_last)
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
@@ -80,6 +86,9 @@ def train_model(config: TrainingConfig) -> dict[str, Any]:
             "batch_size": config.batch_size,
             "device": str(device),
             "epochs": config.epochs,
+            "init_checkpoint": str(config.init_checkpoint_path)
+            if config.init_checkpoint_path is not None
+            else None,
             "num_workers": config.num_workers,
             "samples": total_samples,
             "train_samples": len(train_dataset),
@@ -128,6 +137,7 @@ def train_model(config: TrainingConfig) -> dict[str, Any]:
             image_shape=image_shape,
             device=device,
             amp_enabled=amp_enabled,
+            init_checkpoint=init_checkpoint,
             train_loss=final_train_loss,
             val_loss=final_val_loss,
             epoch=epoch,
@@ -153,6 +163,9 @@ def train_model(config: TrainingConfig) -> dict[str, Any]:
         "datasets": [str(path) for path in config.dataset_dirs],
         "device": str(device),
         "epochs": config.epochs,
+        "init_checkpoint": str(config.init_checkpoint_path)
+        if config.init_checkpoint_path is not None
+        else None,
         "num_workers": config.num_workers,
         "samples": total_samples,
         "train_loss": final_train_loss,
@@ -168,6 +181,7 @@ def build_checkpoint(
     image_shape: tuple[int, ...] | None,
     device: torch.device,
     amp_enabled: bool,
+    init_checkpoint: dict[str, Any] | None,
     train_loss: float,
     val_loss: float,
     epoch: int,
@@ -186,12 +200,25 @@ def build_checkpoint(
             "val_loss": val_loss,
             "device": str(device),
             "amp": amp_enabled,
+            "init_checkpoint": str(config.init_checkpoint_path)
+            if config.init_checkpoint_path is not None
+            else None,
         },
         "dataset": {
             "paths": [str(path) for path in config.dataset_dirs],
             "samples": total_samples,
             "image_shape": image_shape,
         },
+        "initialized_from": checkpoint_summary(init_checkpoint),
+    }
+
+
+def checkpoint_summary(checkpoint: dict[str, Any] | None) -> dict[str, Any] | None:
+    if checkpoint is None:
+        return None
+    return {
+        "training": checkpoint.get("training"),
+        "dataset": checkpoint.get("dataset"),
     }
 
 
