@@ -279,6 +279,7 @@ py -3.12 main.py infer --backend carla --autopilot-model [options]
 | `--autopilot-model` | flag | `False` | no | CARLA autopilot is the active driving model. No checkpoint is required. |
 | `--lane-guard` | flag | `False` | no | CARLA waypoint safety assist nudges steering back toward the lane if the model drifts. |
 | `--lane-guard-strength` | `float` | `0.35` | no | Maximum steering blend used by `--lane-guard`. |
+| `--traffic-rule-guard` | flag | `False` | no | CARLA rule assist brakes for detected red/yellow lights and stop signs. |
 | `--show-env` | flag | `False` | no | Print environment details before the run starts. |
 
 ### Example commands
@@ -290,6 +291,7 @@ py -3.12 main.py infer --backend carla --autopilot-model --steps 3000 --spawn-in
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --publish-url http://127.0.0.1:8765/telemetry --spectator chase
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 300 --spawn-index 1 --target-speed 4 --spectator chase
 py -3.12 main.py infer --backend carla --checkpoint models/carla_lane_recovery_cuda.pt --steps 1000 --spawn-index 1 --target-speed 4 --spectator chase --lane-guard
+py -3.12 main.py infer --backend carla --checkpoint models/carla_lane_recovery_cuda.pt --steps 1000 --spawn-index 1 --target-speed 4 --spectator chase --lane-guard --traffic-rule-guard
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 3000 --spawn-index 1 --target-speed 8 --spectator hood
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 1000 --spawn-index 1 --target-speed 8 --spectator chase --autopilot-guide --output data/episodes/guided_spawn1_chase_01
 ```
@@ -309,6 +311,9 @@ model's predictions were from CARLA autopilot's applied controls.
 Use `--lane-guard` when you want a stable CARLA demonstration with a trained
 checkpoint plus a light map-based lane correction. Leave it off when you want a
 pure model-only evaluation.
+Use `--traffic-rule-guard` with CARLA when you want a safety assist for
+traffic lights and stop signs. Leave it off when you want to measure whether
+the image-only model learned those rules by itself.
 
 ### Output to check
 

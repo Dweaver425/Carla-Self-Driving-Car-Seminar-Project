@@ -145,6 +145,14 @@ def build_parser() -> argparse.ArgumentParser:
         default=0.35,
         help="Maximum lane-guard steering blend from 0.0 to 1.0.",
     )
+    infer_parser.add_argument(
+        "--traffic-rule-guard",
+        action="store_true",
+        help=(
+            "With the CARLA backend, brake for detected red/yellow lights "
+            "and stop signs."
+        ),
+    )
     infer_parser.add_argument("--show-env", action="store_true", help="Print environment details.")
 
     serve_parser = subparsers.add_parser(
@@ -331,6 +339,7 @@ def make_controller(args: argparse.Namespace, controller_name: str) -> Any:
             autopilot_guide=autopilot_guide,
             lane_guard=getattr(args, "lane_guard", False),
             lane_guard_strength=getattr(args, "lane_guard_strength", 0.35),
+            traffic_rule_guard=getattr(args, "traffic_rule_guard", False),
         )
     raise ValueError(f"Unsupported controller: {controller_name}")
 

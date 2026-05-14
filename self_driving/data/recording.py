@@ -69,6 +69,7 @@ class EpisodeRecorder:
             "collision_detected": observation.collision_detected,
             "collision_details": observation.collision_details,
             "obstacle_details": observation.obstacle_details,
+            "traffic_rule_details": observation.traffic_rule_details,
             "fleet_message": message.as_dict(),
             "alerts": alerts or [],
         }

@@ -49,3 +49,4 @@ class DrivingObservation:
     collision_detected: bool = False
     collision_details: dict[str, Any] | None = None
     obstacle_details: dict[str, Any] | None = None
+    traffic_rule_details: dict[str, Any] | None = None

@@ -24,6 +24,8 @@ class CarlaSimulatorClient(SimulatorClient):
         self._camera: Any = None
         self._collision_sensor: Any = None
         self._obstacle_sensor: Any = None
+        self._traffic_light_actors: list[Any] = []
+        self._stop_sign_actors: list[Any] = []
         self._image_queue: queue.Queue[Any] = queue.Queue()
         self._collision_events: queue.Queue[dict[str, Any]] = queue.Queue()
         self._pending_collision_events: list[dict[str, Any]] = []
@@ -48,6 +50,9 @@ class CarlaSimulatorClient(SimulatorClient):
         self._client.set_timeout(self.config.timeout_seconds)
         self._world = self._client.get_world()
         self._original_settings = self._world.get_settings()
+        actors = self._world.get_actors()
+        self._traffic_light_actors = list(actors.filter("*traffic_light*"))
+        self._stop_sign_actors = list(actors.filter("*stop*"))
 
         if self.config.synchronous_mode:
             settings = self._world.get_settings()
@@ -301,6 +306,7 @@ class CarlaSimulatorClient(SimulatorClient):
         )
         collision_details = self._consume_collision_details(snapshot.frame)
         obstacle_details = self._consume_obstacle_details(snapshot.frame)
+        traffic_rule_details = self._traffic_rule_details(transform)
         return DrivingObservation(
             state=state,
             front_camera_rgb=image_rgb,
@@ -310,6 +316,7 @@ class CarlaSimulatorClient(SimulatorClient):
             collision_detected=collision_details is not None,
             collision_details=collision_details,
             obstacle_details=obstacle_details,
+            traffic_rule_details=traffic_rule_details,
         )
 
     def _adjust_spawn_transform(self, transform: Any) -> Any:
@@ -366,6 +373,110 @@ class CarlaSimulatorClient(SimulatorClient):
             "is_junction": bool(waypoint.is_junction),
         }
         return float(lateral_offset_m), float(heading_error_deg), lane_details
+
+    def _traffic_rule_details(self, transform: Any) -> dict[str, Any] | None:
+        traffic_light = self._traffic_light_details(transform)
+        stop_sign = self._stop_sign_details(transform)
+        if traffic_light is None and stop_sign is None:
+            return None
+        return {
+            "traffic_light": traffic_light,
+            "stop_sign": stop_sign,
+        }
+
+    def _traffic_light_details(self, transform: Any) -> dict[str, Any] | None:
+        if self._vehicle is None:
+            return None
+
+        with suppress(Exception):
+            if self._vehicle.is_at_traffic_light():
+                traffic_light = self._vehicle.get_traffic_light()
+                if traffic_light is not None:
+                    return self._traffic_actor_details(
+                        traffic_light,
+                        transform,
+                        state=str(self._vehicle.get_traffic_light_state()).split(".")[-1],
+                    )
+
+        best: dict[str, Any] | None = None
+        for traffic_light in self._traffic_light_actors:
+            with suppress(Exception):
+                state = str(traffic_light.state).split(".")[-1]
+                if state not in {"Red", "Yellow"}:
+                    continue
+                details = self._traffic_actor_details(traffic_light, transform, state=state)
+                if details is None:
+                    continue
+                if (
+                    0.0 <= details["forward_distance_m"] <= 14.0
+                    and abs(details["lateral_distance_m"]) <= 5.0
+                    and abs(details["angle_deg"]) <= 60.0
+                    and (
+                        best is None
+                        or details["forward_distance_m"] < best["forward_distance_m"]
+                    )
+                ):
+                    best = details
+        return best
+
+    def _stop_sign_details(self, transform: Any) -> dict[str, Any] | None:
+        best: dict[str, Any] | None = None
+        for stop_sign in self._stop_sign_actors:
+            details = self._traffic_actor_details(stop_sign, transform, state="Stop")
+            if details is None:
+                continue
+            if (
+                -1.0 <= details["forward_distance_m"] <= 12.0
+                and abs(details["lateral_distance_m"]) <= 5.0
+                and abs(details["angle_deg"]) <= 65.0
+                and (
+                    best is None
+                    or details["forward_distance_m"] < best["forward_distance_m"]
+                )
+            ):
+                best = details
+        return best
+
+    def _traffic_actor_details(
+        self,
+        actor: Any,
+        ego_transform: Any,
+        *,
+        state: str,
+    ) -> dict[str, Any] | None:
+        if self._carla is None:
+            return None
+        try:
+            actor_location = self._traffic_actor_location(actor)
+            forward = ego_transform.get_forward_vector()
+            right = ego_transform.get_right_vector()
+            delta_x = actor_location.x - ego_transform.location.x
+            delta_y = actor_location.y - ego_transform.location.y
+            distance_m = math.sqrt(delta_x**2 + delta_y**2)
+            forward_distance_m = (delta_x * forward.x) + (delta_y * forward.y)
+            lateral_distance_m = (delta_x * right.x) + (delta_y * right.y)
+            angle_deg = math.degrees(
+                math.atan2(lateral_distance_m, max(forward_distance_m, 0.001))
+            )
+        except Exception:
+            return None
+
+        return {
+            "id": int(actor.id),
+            "type_id": str(actor.type_id),
+            "state": state,
+            "distance_m": float(distance_m),
+            "forward_distance_m": float(forward_distance_m),
+            "lateral_distance_m": float(lateral_distance_m),
+            "angle_deg": float(angle_deg),
+        }
+
+    def _traffic_actor_location(self, actor: Any) -> Any:
+        transform = actor.get_transform()
+        trigger_volume = getattr(actor, "trigger_volume", None)
+        if trigger_volume is None:
+            return transform.location
+        return transform.transform(trigger_volume.location)
 
     def _read_camera_image(self, target_frame: int) -> np.ndarray:
         deadline = time.monotonic() + self.config.timeout_seconds

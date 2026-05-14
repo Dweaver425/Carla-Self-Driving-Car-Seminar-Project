@@ -8,6 +8,8 @@ from self_driving.control import clamp
 from self_driving.modeling import image_to_tensor, load_driving_model
 from self_driving.types import ControlCommand, DrivingObservation
 
+STOP_HOLD_STEPS = 25
+
 
 class ModelController:
     def __init__(
@@ -17,13 +19,18 @@ class ModelController:
         autopilot_guide: bool = False,
         lane_guard: bool = False,
         lane_guard_strength: float = 0.35,
+        traffic_rule_guard: bool = False,
     ) -> None:
         self.model, self.device, self.metadata = load_driving_model(checkpoint_path)
         self.target_speed_mps = target_speed_mps
         self.autopilot_guidance_enabled = autopilot_guide
         self.lane_guard_enabled = lane_guard
         self.lane_guard_strength = clamp(lane_guard_strength, 0.0, 1.0)
+        self.traffic_rule_guard_enabled = traffic_rule_guard
         self._last_steering: float | None = None
+        self._active_stop_sign_id: int | None = None
+        self._stop_hold_steps = 0
+        self._cleared_stop_sign_ids: set[int] = set()
 
     def on_client_ready(self, client: object) -> None:
         if not self.autopilot_guidance_enabled:
@@ -77,7 +84,62 @@ class ModelController:
         else:
             self._last_steering = steering
 
+        if self.traffic_rule_guard_enabled:
+            throttle, brake = self._apply_traffic_rule_guard(
+                observation,
+                throttle=throttle,
+                brake=brake,
+            )
+
         return ControlCommand(throttle=throttle, steering=steering, brake=brake)
+
+    def _apply_traffic_rule_guard(
+        self,
+        observation: DrivingObservation,
+        *,
+        throttle: float,
+        brake: float,
+    ) -> tuple[float, float]:
+        details = observation.traffic_rule_details or {}
+        traffic_light = details.get("traffic_light")
+        if isinstance(traffic_light, dict) and traffic_light.get("state") in {"Red", "Yellow"}:
+            forward_distance = float(traffic_light.get("forward_distance_m", 0.0))
+            if -1.0 <= forward_distance <= 14.0:
+                return 0.0, max(brake, self._brake_for_rule_stop(observation))
+
+        stop_sign = details.get("stop_sign")
+        if not isinstance(stop_sign, dict):
+            self._active_stop_sign_id = None
+            self._stop_hold_steps = 0
+            return throttle, brake
+
+        stop_id = int(stop_sign.get("id", -1))
+        forward_distance = float(stop_sign.get("forward_distance_m", 999.0))
+        if stop_id in self._cleared_stop_sign_ids or not (-1.0 <= forward_distance <= 8.5):
+            return throttle, brake
+
+        if self._active_stop_sign_id != stop_id:
+            self._active_stop_sign_id = stop_id
+            self._stop_hold_steps = 0
+
+        if observation.state.speed_mps > 0.25:
+            return 0.0, max(brake, self._brake_for_rule_stop(observation))
+
+        self._stop_hold_steps += 1
+        if self._stop_hold_steps < STOP_HOLD_STEPS:
+            return 0.0, 1.0
+
+        self._cleared_stop_sign_ids.add(stop_id)
+        self._active_stop_sign_id = None
+        self._stop_hold_steps = 0
+        return throttle, brake
+
+    def _brake_for_rule_stop(self, observation: DrivingObservation) -> float:
+        if observation.state.speed_mps > 3.5:
+            return 0.9
+        if observation.state.speed_mps > 1.0:
+            return 0.7
+        return 1.0
 
     def _apply_lane_guard(
         self,
