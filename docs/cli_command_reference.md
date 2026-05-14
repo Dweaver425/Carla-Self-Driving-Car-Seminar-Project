@@ -31,6 +31,17 @@ py -3.12 main.py <command> [options]
 | `infer` | Let the trained model drive | Use to test the model |
 | `serve` | Start the fleet server | Use when vehicles should publish telemetry |
 
+## Command Section Format
+
+Every command section in this document uses the same pattern:
+
+- What it does
+- Good time to use it
+- Base command
+- Parameters
+- Example commands
+- Output to check when that matters
+
 ## Important Command Behavior
 
 - If you run `py -3.12 main.py` with no command, the project starts `demo`.
@@ -63,13 +74,13 @@ These flags are used by `demo`, `collect`, and `infer`.
 
 Prints environment details so you can confirm the project is set up correctly.
 
-### Command
+### Base command
 
 ```bash
 py -3.12 main.py env
 ```
 
-### What it prints
+### Output to check
 
 - Python version
 - machine architecture
@@ -89,7 +100,7 @@ Runs the driving loop without saving a dataset.
 
 Use `demo` when you want to check that the simulator, controller, and loop all work.
 
-### Command
+### Base command
 
 ```bash
 py -3.12 main.py demo [options]
@@ -113,8 +124,14 @@ py -3.12 main.py demo [options]
 ```bash
 py -3.12 main.py demo --backend mock --steps 50
 py -3.12 main.py demo --backend mock --controller lane --steps 100 --quiet
-py -3.12 main.py demo --backend carla --host 127.0.0.1 --port 2000 --steps 100
+py -3.12 main.py demo --backend carla --host 127.0.0.1 --port 2000 --steps 100 --spawn-index 1 --spectator chase
 ```
+
+### Output to check
+
+- final JSON summary
+- `distance_traveled_m`
+- `collision_detected`
 
 ## Command: `collect`
 
@@ -126,7 +143,7 @@ Runs the car and saves the drive to disk for training later.
 
 Use `collect` before `train`.
 
-### Command
+### Base command
 
 ```bash
 py -3.12 main.py collect [options]
@@ -140,7 +157,7 @@ py -3.12 main.py collect [options]
 | `--output` | `string/path` | auto | Where to save the recorded episode. If omitted, the project creates a timestamped folder in `data/episodes/`. |
 | `--show-env` | flag | `False` | Print environment details before the run starts. |
 
-### Files it creates
+### Output to check
 
 - `metadata.json`
 - `manifest.jsonl`
@@ -164,7 +181,7 @@ Trains the behavior-cloning model from a recorded dataset.
 
 Use `train` after you have a dataset from `collect`.
 
-### Command
+### Base command
 
 ```bash
 py -3.12 main.py train --dataset <episode_dir> [options]
@@ -219,9 +236,15 @@ Recommended starting points:
 py -3.12 main.py train --dataset data/episodes/mock_run_01
 py -3.12 main.py train --dataset data/episodes/mock_run_01 --epochs 10 --batch-size 8
 py -3.12 main.py train --dataset data/episodes/carla_run_01 data/episodes/carla_run_02 --output models/carla_combined.pt --num-workers 4
-py -3.12 main.py train --dataset data/episodes/carla_run_01 --output models/carla_model.pt --device cuda
+py -3.12 main.py train --dataset data/episodes/carla_run_01 --output models/carla_run_01_cuda.pt --device cuda
 py -3.12 main.py train --dataset data/raw/carla_weekend_combined/carla_weekend_combined --output models/carla_weekend_tar_index_cuda.pt --device cuda --epochs 4 --batch-size 256 --num-workers 8 --val-split 0.1 --log-interval 100
 ```
+
+### Output to check
+
+- `train_loss`
+- `val_loss`
+- saved checkpoint path
 
 ## Command: `infer`
 
@@ -233,7 +256,7 @@ Loads a trained model and lets it drive the vehicle.
 
 Use `infer` after you have trained a model.
 
-### Command
+### Base command
 
 ```bash
 py -3.12 main.py infer --checkpoint <model_path> [options]
@@ -253,10 +276,10 @@ py -3.12 main.py infer --checkpoint <model_path> [options]
 ```bash
 py -3.12 main.py infer --backend mock --checkpoint models/driving_model.pt
 py -3.12 main.py infer --backend mock --checkpoint models/driving_model.pt --steps 200 --quiet
-py -3.12 main.py infer --backend carla --checkpoint models/carla_model.pt --publish-url http://127.0.0.1:8765/telemetry
-py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 250 --spawn-index 1 --target-speed 8 --quiet
+py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --publish-url http://127.0.0.1:8765/telemetry --spectator chase
+py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 300 --spawn-index 1 --target-speed 4 --spectator chase
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 3000 --spawn-index 1 --target-speed 8 --spectator hood
-py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 1000 --spawn-index 1 --target-speed 8 --spectator chase --autopilot-guide
+py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 1000 --spawn-index 1 --target-speed 8 --spectator chase --autopilot-guide --output data/episodes/guided_spawn1_chase_01
 ```
 
 The final inference summary includes run-quality metrics such as
@@ -270,6 +293,14 @@ With `--autopilot-guide`, the summary also includes
 `average_abs_control_delta` and `max_abs_control_delta`, which show how far the
 model's predictions were from CARLA autopilot's applied controls.
 
+### Output to check
+
+- `collision_detected`
+- `carla_collision_detected`
+- `blocked_detected`
+- `closest_obstacle_details`
+- `average_abs_control_delta` when using `--autopilot-guide`
+
 ## Command: `serve`
 
 ### What it does
@@ -280,7 +311,7 @@ Starts the central fleet coordination server.
 
 Use `serve` when you want one or more vehicles to publish telemetry and receive alerts.
 
-### Command
+### Base command
 
 ```bash
 py -3.12 main.py serve [options]
@@ -304,6 +335,11 @@ py -3.12 main.py serve --host 0.0.0.0 --port 8765
 py -3.12 main.py serve --db data/fleet/test.db --proximity-threshold 5.0 --stale-after 1.5
 ```
 
+### Output to check
+
+- server startup message
+- telemetry responses from clients
+
 ## Common Workflows
 
 ### Workflow 1: Train and test a model
@@ -323,8 +359,8 @@ Use this after CARLA is open and a checkpoint has been trained.
 py -3.12 main.py env
 py -3.12 -c "import carla; c=carla.Client('127.0.0.1',2000); c.set_timeout(5.0); w=c.get_world(); print('frame:', w.get_snapshot().frame); print('map:', w.get_map().name)"
 py -3.12 main.py demo --backend carla --steps 100 --spawn-index 1 --target-speed 8 --quiet
-py -3.12 main.py infer --backend carla --checkpoint models/carla_model.pt --steps 250 --spawn-index 1 --target-speed 8 --quiet
-py -3.12 main.py infer --backend carla --checkpoint models/carla_model.pt --steps 1000 --spawn-index 1 --target-speed 8 --quiet
+py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 300 --spawn-index 1 --target-speed 4 --spectator chase
+py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 1000 --spawn-index 1 --target-speed 8 --spectator chase --autopilot-guide --output data/episodes/guided_spawn1_chase_01
 ```
 
 A large TAR-indexed dataset can be trained from a dataset root such as:
@@ -349,7 +385,7 @@ py -3.12 PythonAPI/examples/generate_traffic.py --host 127.0.0.1 --port 2000 --n
 Terminal 2, from this project folder:
 
 ```bash
-py -3.12 main.py infer --backend carla --checkpoint models/carla_auto_combined_v2.pt --steps 5000 --spawn-index 1
+py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 1000 --spawn-index 1 --target-speed 8 --spectator chase --autopilot-guide
 ```
 
 Important notes:
@@ -369,7 +405,7 @@ py -3.12 main.py serve --host 0.0.0.0 --port 8765
 Terminal 2:
 
 ```bash
-py -3.12 main.py infer --backend carla --checkpoint models/carla_model.pt --publish-url http://127.0.0.1:8765/telemetry
+py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --publish-url http://127.0.0.1:8765/telemetry --spectator chase --autopilot-guide
 ```
 
 ## Simple Glossary

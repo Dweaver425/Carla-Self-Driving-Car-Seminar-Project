@@ -389,7 +389,23 @@ Why skilled users care:
 
 ## What Happens When You Run Each Command
 
-### `py -3.12 main.py env`
+Each command explanation follows the same format:
+
+- Purpose
+- Base command
+- What happens
+- Main files involved
+
+### Command: `env`
+
+Purpose:
+- check whether the local environment can run the project
+
+Base command:
+
+```bash
+py -3.12 main.py env
+```
 
 What happens:
 - the project prints Python and package information
@@ -397,7 +413,16 @@ What happens:
 Main files involved:
 - `main.py`
 
-### `py -3.12 main.py demo`
+### Command: `demo`
+
+Purpose:
+- run a simulator loop without saving a dataset
+
+Base command:
+
+```bash
+py -3.12 main.py demo [options]
+```
 
 What happens:
 - the project starts a simulator
@@ -410,7 +435,16 @@ Main files involved:
 - `self_driving/pipeline.py`
 - `self_driving/simulator/mock.py` or `self_driving/simulator/carla_adapter.py`
 
-### `py -3.12 main.py collect`
+### Command: `collect`
+
+Purpose:
+- save a driving episode for later training
+
+Base command:
+
+```bash
+py -3.12 main.py collect [options]
+```
 
 What happens:
 - the project runs the car
@@ -424,7 +458,16 @@ Main files involved:
 - `self_driving/data/recording.py`
 - simulator backend
 
-### `py -3.12 main.py train`
+### Command: `train`
+
+Purpose:
+- train a checkpoint from one or more recorded datasets
+
+Base command:
+
+```bash
+py -3.12 main.py train --dataset <episode_dir> [options]
+```
 
 What happens:
 - the project loads a recorded dataset
@@ -440,7 +483,16 @@ Main files involved:
 - `self_driving/modeling.py`
 - `self_driving/training.py`
 
-### `py -3.12 main.py infer`
+### Command: `infer`
+
+Purpose:
+- run a saved checkpoint in the driving loop
+
+Base command:
+
+```bash
+py -3.12 main.py infer --checkpoint <model_path> [options]
+```
 
 What happens:
 - the project loads a checkpoint
@@ -457,7 +509,16 @@ Main files involved:
 - `self_driving/pipeline.py`
 - simulator backend
 
-### `py -3.12 main.py serve`
+### Command: `serve`
+
+Purpose:
+- start the fleet telemetry and collision-advisory server
+
+Base command:
+
+```bash
+py -3.12 main.py serve [options]
+```
 
 What happens:
 - the project starts the fleet coordination server
@@ -485,47 +546,101 @@ They are project modules, not normal entrypoints.
 
 ## Most Important Commands
 
+Each command block below uses the same format:
+
+- Purpose
+- Example commands
+- Output to check
+
 ### Check the environment
+
+Purpose:
+- verify Python, packages, PyTorch, and CARLA API
 
 ```bash
 py -3.12 main.py env
 ```
 
+Output to check:
+- `PyTorch`
+- `CARLA API`
+
 ### Run a simple demo
+
+Purpose:
+- run a quick loop without writing a dataset
 
 ```bash
 py -3.12 main.py demo --backend mock --controller lane --steps 100
+py -3.12 main.py demo --backend carla --steps 100 --spawn-index 1 --target-speed 8 --spectator chase
 ```
+
+Output to check:
+- `distance_traveled_m`
+- `collision_detected`
 
 ### Record a dataset
 
+Purpose:
+- create training data from mock control or CARLA autopilot
+
 ```bash
 py -3.12 main.py collect --backend mock --steps 400 --output data/episodes/run_01
-py -3.12 main.py collect --backend carla --controller autopilot --steps 1000 --output data/episodes/carla_run_01
+py -3.12 main.py collect --backend carla --controller autopilot --steps 1000 --output data/episodes/carla_run_01 --spectator chase
 ```
 
+Output to check:
+- `metadata.json`
+- `manifest.jsonl`
+- `images/`
+
 ### Train the model
+
+Purpose:
+- train a checkpoint from recorded data
 
 ```bash
 py -3.12 main.py train --dataset data/episodes/run_01 --output models/driving_model.pt
 py -3.12 main.py train --dataset data/episodes/run_01 data/episodes/run_02 --output models/driving_model.pt --num-workers 4
-py -3.12 main.py train --dataset data/raw/carla_weekend_combined/carla_weekend_combined --output models/carla_weekend_tar_index_cuda.pt --device cuda --epochs 4 --batch-size 256 --num-workers 8 --val-split 0.1
+py -3.12 main.py train --dataset data/raw/carla_weekend_combined/carla_weekend_combined --output models/carla_weekend_tar_index_cuda.pt --device cuda --epochs 4 --batch-size 256 --num-workers 8 --val-split 0.1 --log-interval 100
 ```
+
+Output to check:
+- `train_loss`
+- `val_loss`
+- saved checkpoint path
 
 ### Run the trained model
 
+Purpose:
+- evaluate a checkpoint in mock mode or CARLA
+
 ```bash
 py -3.12 main.py infer --backend mock --checkpoint models/driving_model.pt --steps 100
-py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 250 --spawn-index 1 --target-speed 8 --quiet
+py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 300 --spawn-index 1 --target-speed 4 --spectator chase
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 3000 --spawn-index 1 --target-speed 8 --spectator hood
-py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 1000 --spawn-index 1 --target-speed 8 --spectator chase --autopilot-guide
+py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 1000 --spawn-index 1 --target-speed 8 --spectator chase --autopilot-guide --output data/episodes/guided_spawn1_chase_01
 ```
 
+Output to check:
+- `collision_detected`
+- `carla_collision_detected`
+- `blocked_detected`
+- `closest_obstacle_details`
+- `average_abs_control_delta` when using `--autopilot-guide`
+
 ### Start the fleet server
+
+Purpose:
+- run the telemetry coordination server
 
 ```bash
 py -3.12 main.py serve --host 0.0.0.0 --port 8765
 ```
+
+Output to check:
+- server startup message
+- telemetry responses from clients
 
 ## Practical Training Process Used In This Project
 
@@ -576,7 +691,7 @@ Simple meaning:
 After training, the model was tested in CARLA:
 
 ```bash
-py -3.12 main.py infer --backend carla --checkpoint models/carla_auto_combined_v2.pt --steps 200 --spawn-index 1
+py -3.12 main.py infer --backend carla --checkpoint models/carla_auto_combined_v2.pt --steps 200 --spawn-index 1 --spectator chase
 ```
 
 This was not just for show. It answered an important question:
@@ -635,7 +750,8 @@ Useful health and evaluation commands:
 py -3.12 main.py env
 py -3.12 -c "import carla; c=carla.Client('127.0.0.1',2000); c.set_timeout(5.0); w=c.get_world(); print('frame:', w.get_snapshot().frame); print('map:', w.get_map().name)"
 py -3.12 main.py demo --backend carla --steps 100 --spawn-index 1 --target-speed 8 --quiet
-py -3.12 main.py infer --backend carla --checkpoint models/carla_model.pt --steps 250 --spawn-index 1 --target-speed 8 --quiet
+py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 300 --spawn-index 1 --target-speed 4 --spectator chase
+py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 1000 --spawn-index 1 --target-speed 8 --spectator chase --autopilot-guide --output data/episodes/guided_spawn1_chase_01
 ```
 
 ## Best Mental Model

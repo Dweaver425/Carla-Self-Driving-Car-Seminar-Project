@@ -166,84 +166,162 @@ This prints:
 
 ## Step-By-Step Usage
 
-### Step 1. Run a simple driving loop
+Every command section below uses the same format:
+
+- Purpose: what the command is for
+- Base command: the shortest shape of the command
+- Example commands: copy-paste commands for common project tasks
+- Output to check: the most important result to inspect
+
+### Command: `env`
+
+Purpose:
+- confirm Python, package, PyTorch, and CARLA API availability
+
+Base command:
+
+```bash
+py -3.12 main.py env
+```
+
+Output to check:
+- `PyTorch`
+- `CARLA API`
+
+### Command: `demo`
+
+Purpose:
+- run a quick driving loop without saving a dataset
+
+Base command:
+
+```bash
+py -3.12 main.py demo [options]
+```
+
+Example commands:
 
 ```bash
 py -3.12 main.py demo --backend mock --steps 50
+py -3.12 main.py demo --backend mock --controller lane --steps 100 --quiet
+py -3.12 main.py demo --backend carla --steps 100 --spawn-index 1 --target-speed 8 --spectator chase
 ```
 
-Use this when you just want to see the pipeline run without saving data.
+Output to check:
+- final JSON summary
+- `collision_detected`
+- `distance_traveled_m`
 
-### Step 2. Record a dataset
+### Command: `collect`
+
+Purpose:
+- record camera images, vehicle state, and applied controls for later training
+
+Base command:
+
+```bash
+py -3.12 main.py collect [options]
+```
+
+Example commands:
 
 ```bash
 py -3.12 main.py collect --backend mock --steps 400 --output data/episodes/run_01
+py -3.12 main.py collect --backend carla --controller autopilot --steps 1000 --output data/episodes/carla_run_01 --spectator chase
+py -3.12 main.py collect --backend carla --controller autopilot --steps 700000 --output data/episodes/carla_overnight_01 --quiet
 ```
 
-This creates a dataset folder that contains:
-
+Output to check:
 - `metadata.json`
 - `manifest.jsonl`
 - `images/`
 
-On CARLA, `collect` now defaults to the built-in autopilot teacher so the saved controls are better than the simple demo driver.
+On CARLA, `collect` defaults to the built-in autopilot teacher when no controller is specified.
 
-### Step 3. Train the model
+### Command: `train`
+
+Purpose:
+- train a behavior-cloning checkpoint from one or more recorded datasets
+
+Base command:
+
+```bash
+py -3.12 main.py train --dataset <episode_dir> [options]
+```
+
+Example commands:
 
 ```bash
 py -3.12 main.py train --dataset data/episodes/run_01 --output models/driving_model.pt
+py -3.12 main.py train --dataset data/episodes/run_01 data/episodes/run_02 --output models/driving_model.pt --epochs 8 --batch-size 16 --num-workers 6
+py -3.12 main.py train --dataset data/raw/carla_weekend_combined/carla_weekend_combined --output models/carla_weekend_tar_index_cuda.pt --device cuda --epochs 4 --batch-size 256 --num-workers 8 --val-split 0.1 --log-interval 100
 ```
 
-This trains the model and saves it as `models/driving_model.pt`.
+Output to check:
+- final training JSON summary
+- `train_loss`
+- `val_loss`
+- saved checkpoint path
 
-You can also train from multiple recorded runs at once:
-
-```bash
-py -3.12 main.py train --dataset data/episodes/run_01 data/episodes/run_02 --output models/driving_model.pt --num-workers 4
-```
-
-### Training settings in plain English
-
+Training settings in plain English:
 - `--epochs`: how many times the model goes through the full dataset
 - `--batch-size`: how many images the model learns from at one time before it updates itself
 - `--num-workers`: how many helper processes load images in parallel during training
 - `--learning-rate`: how aggressively the optimizer changes the model each update
 - `--device`: where training runs, usually `cpu` or `cuda`
 
-Simple example:
+### Command: `infer`
 
-- `--epochs 5 --batch-size 16 --num-workers 6`
-- This means: go through the full dataset 5 times, learn from 16 images at a time, and use 6 helpers to keep data loading moving.
+Purpose:
+- load a checkpoint and run it in the driving loop
 
-Good starting values:
+Base command:
 
-- quick test: `--epochs 3 --batch-size 16 --num-workers 4`
-- stronger run: `--epochs 8 --batch-size 16 --num-workers 6`
-- if memory is tight: lower `--batch-size` from `16` to `8`
+```bash
+py -3.12 main.py infer --checkpoint <model_path> [options]
+```
 
-### Step 4. Run the trained model
+Example commands:
 
 ```bash
 py -3.12 main.py infer --backend mock --checkpoint models/driving_model.pt --steps 100
+py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 300 --spawn-index 1 --target-speed 4 --spectator chase
+py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 1000 --spawn-index 1 --target-speed 8 --spectator chase --autopilot-guide --output data/episodes/guided_spawn1_chase_01
+py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 3000 --spawn-index 1 --target-speed 8 --spectator hood
 ```
 
-This loads the saved model and lets it drive the vehicle.
+Output to check:
+- `collision_detected`
+- `carla_collision_detected`
+- `blocked_detected`
+- `closest_obstacle_details`
+- `average_abs_control_delta` when using `--autopilot-guide`
 
-### Step 5. Start the fleet coordinator
+Use `--spectator chase` for third person. Use `--spectator hood` for a first-person-style view.
+Use `--autopilot-guide` when you want CARLA autopilot to drive safely while the model is compared against it.
+
+### Command: `serve`
+
+Purpose:
+- start the fleet telemetry and collision-advisory server
+
+Base command:
 
 ```bash
+py -3.12 main.py serve [options]
+```
+
+Example commands:
+
+```bash
+py -3.12 main.py serve
 py -3.12 main.py serve --host 0.0.0.0 --port 8765
-```
-
-This starts the central telemetry service.
-
-### Step 6. Drive while publishing telemetry
-
-```bash
 py -3.12 main.py infer --backend mock --checkpoint models/driving_model.pt --publish-url http://127.0.0.1:8765/telemetry
 ```
 
-This runs the car and sends its telemetry to the fleet server.
+Output to check:
+- server startup message
+- telemetry POST responses
 
 ## Real Project Workflow Used In This Seminar
 
@@ -273,7 +351,7 @@ py -3.12 main.py train --dataset data/episodes/carla_auto_01 data/episodes/carla
 The model was then tested in CARLA:
 
 ```bash
-py -3.12 main.py infer --backend carla --checkpoint models/carla_auto_combined_v2.pt --steps 200 --spawn-index 1
+py -3.12 main.py infer --backend carla --checkpoint models/carla_auto_combined_v2.pt --steps 200 --spawn-index 1 --spectator chase
 ```
 
 That testing step was important because it showed whether the model was actually alive and making decisions, even if the driving was still unstable.
@@ -366,7 +444,7 @@ py -3.12 PythonAPI/examples/generate_traffic.py --host 127.0.0.1 --port 2000 --n
 Run your collection or inference command from this project folder:
 
 ```bash
-py -3.12 main.py infer --backend carla --checkpoint models/carla_auto_combined_v2.pt --steps 5000 --spawn-index 1
+py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 1000 --spawn-index 1 --target-speed 8 --spectator chase --autopilot-guide
 ```
 
 Important rule:
