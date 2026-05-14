@@ -23,8 +23,12 @@ class CarlaSimulatorClient(SimulatorClient):
         self._vehicle: Any = None
         self._camera: Any = None
         self._collision_sensor: Any = None
+        self._obstacle_sensor: Any = None
         self._image_queue: queue.Queue[Any] = queue.Queue()
-        self._latest_collision_frame: int | None = None
+        self._collision_events: queue.Queue[dict[str, Any]] = queue.Queue()
+        self._pending_collision_events: list[dict[str, Any]] = []
+        self._obstacle_events: queue.Queue[dict[str, Any]] = queue.Queue()
+        self._pending_obstacle_events: list[dict[str, Any]] = []
         self._original_settings: Any = None
         self._autopilot_enabled = False
         self._last_command = ControlCommand()
@@ -97,6 +101,21 @@ class CarlaSimulatorClient(SimulatorClient):
         )
         self._collision_sensor.listen(self._on_collision)
 
+        obstacle_bp = blueprint_library.find("sensor.other.obstacle")
+        if obstacle_bp.has_attribute("distance"):
+            obstacle_bp.set_attribute("distance", "8.0")
+        if obstacle_bp.has_attribute("hit_radius"):
+            obstacle_bp.set_attribute("hit_radius", "0.75")
+        if obstacle_bp.has_attribute("only_dynamics"):
+            obstacle_bp.set_attribute("only_dynamics", "false")
+        obstacle_transform = carla.Transform(carla.Location(x=2.5, z=1.2))
+        self._obstacle_sensor = self._world.spawn_actor(
+            obstacle_bp,
+            obstacle_transform,
+            attach_to=self._vehicle,
+        )
+        self._obstacle_sensor.listen(self._on_obstacle)
+
         self._tick_world()
 
     def enable_autopilot(self) -> None:
@@ -140,7 +159,7 @@ class CarlaSimulatorClient(SimulatorClient):
                 self._traffic_manager.set_synchronous_mode(False)
             self._traffic_manager = None
 
-        for actor_name in ("_camera", "_collision_sensor", "_vehicle"):
+        for actor_name in ("_camera", "_collision_sensor", "_obstacle_sensor", "_vehicle"):
             actor = getattr(self, actor_name)
             if actor is not None:
                 with suppress(RuntimeError):
@@ -159,6 +178,47 @@ class CarlaSimulatorClient(SimulatorClient):
             self._world.tick()
         else:
             self._world.wait_for_tick()
+        self._update_spectator()
+
+    def _update_spectator(self) -> None:
+        if (
+            self.config.spectator_mode == "none"
+            or self._world is None
+            or self._vehicle is None
+            or self._carla is None
+        ):
+            return
+
+        transform = self._vehicle.get_transform()
+        rotation = transform.rotation
+        forward = transform.get_forward_vector()
+
+        if self.config.spectator_mode == "hood":
+            location = self._carla.Location(
+                x=transform.location.x + forward.x * 1.5,
+                y=transform.location.y + forward.y * 1.5,
+                z=transform.location.z + 2.35,
+            )
+            spectator_rotation = self._carla.Rotation(
+                pitch=rotation.pitch - 5.0,
+                yaw=rotation.yaw,
+                roll=0.0,
+            )
+        else:
+            location = self._carla.Location(
+                x=transform.location.x - forward.x * 8.0,
+                y=transform.location.y - forward.y * 8.0,
+                z=transform.location.z + 4.0,
+            )
+            spectator_rotation = self._carla.Rotation(
+                pitch=-12.0,
+                yaw=rotation.yaw,
+                roll=0.0,
+            )
+
+        self._world.get_spectator().set_transform(
+            self._carla.Transform(location, spectator_rotation)
+        )
 
     def _capture_observation(self) -> DrivingObservation:
         if self._vehicle is None or self._world is None:
@@ -189,10 +249,14 @@ class CarlaSimulatorClient(SimulatorClient):
             control=applied_command,
             frame=snapshot.frame,
         )
+        collision_details = self._consume_collision_details(snapshot.frame)
+        obstacle_details = self._consume_obstacle_details(snapshot.frame)
         return DrivingObservation(
             state=state,
             front_camera_rgb=image_rgb,
-            collision_detected=self._consume_collision_flag(snapshot.frame),
+            collision_detected=collision_details is not None,
+            collision_details=collision_details,
+            obstacle_details=obstacle_details,
         )
 
     def _read_camera_image(self, target_frame: int) -> np.ndarray:
@@ -218,11 +282,73 @@ class CarlaSimulatorClient(SimulatorClient):
         return rgb
 
     def _on_collision(self, event: Any) -> None:
-        self._latest_collision_frame = int(event.frame)
+        impulse = event.normal_impulse
+        actor_details = self._actor_details(event.other_actor)
+        self._collision_events.put(
+            {
+                "frame": int(event.frame),
+                "other_actor": actor_details,
+                "impulse_magnitude": float(
+                    math.sqrt(impulse.x**2 + impulse.y**2 + impulse.z**2)
+                ),
+                "normal_impulse": {
+                    "x": float(impulse.x),
+                    "y": float(impulse.y),
+                    "z": float(impulse.z),
+                },
+            }
+        )
 
-    def _consume_collision_flag(self, frame: int) -> bool:
-        # Treat collisions as one-shot events so a single impact does not trigger forever.
-        detected = self._latest_collision_frame is not None and self._latest_collision_frame <= frame
-        if detected:
-            self._latest_collision_frame = None
-        return detected
+    def _on_obstacle(self, event: Any) -> None:
+        self._obstacle_events.put(
+            {
+                "frame": int(event.frame),
+                "distance_m": float(event.distance),
+                "other_actor": self._actor_details(event.other_actor),
+            }
+        )
+
+    def _actor_details(self, actor: Any) -> dict[str, Any] | None:
+        if actor is None:
+            return None
+
+        attributes = getattr(actor, "attributes", {})
+        role_name = attributes.get("role_name") if hasattr(attributes, "get") else None
+        return {
+            "id": int(actor.id),
+            "type_id": str(actor.type_id),
+            "role_name": role_name,
+        }
+
+    def _consume_collision_details(self, frame: int) -> dict[str, Any] | None:
+        while True:
+            try:
+                self._pending_collision_events.append(self._collision_events.get_nowait())
+            except queue.Empty:
+                break
+
+        for index, details in enumerate(self._pending_collision_events):
+            if int(details["frame"]) <= frame:
+                return self._pending_collision_events.pop(index)
+        return None
+
+    def _consume_obstacle_details(self, frame: int) -> dict[str, Any] | None:
+        while True:
+            try:
+                self._pending_obstacle_events.append(self._obstacle_events.get_nowait())
+            except queue.Empty:
+                break
+
+        latest: dict[str, Any] | None = None
+        remaining: list[dict[str, Any]] = []
+        for details in self._pending_obstacle_events:
+            event_frame = int(details["frame"])
+            if event_frame <= frame:
+                latest = details
+            else:
+                remaining.append(details)
+
+        self._pending_obstacle_events = remaining
+        if latest is None or frame - int(latest["frame"]) > 3:
+            return None
+        return latest

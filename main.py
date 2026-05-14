@@ -90,6 +90,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=0,
         help="Number of parallel data-loading workers used during training.",
     )
+    train_parser.add_argument(
+        "--log-interval",
+        type=int,
+        default=100,
+        help="Print training speed and loss every N batches. Use 0 to disable.",
+    )
 
     infer_parser = subparsers.add_parser("infer", help="Run a trained model in the loop.")
     add_simulation_arguments(infer_parser)
@@ -168,6 +174,12 @@ def add_simulation_arguments(parser: argparse.ArgumentParser) -> None:
         default=90,
         help="Front camera height in pixels.",
     )
+    parser.add_argument(
+        "--spectator",
+        choices=("none", "chase", "hood"),
+        default="none",
+        help="Move CARLA's spectator camera with the ego vehicle.",
+    )
 
 
 def add_run_arguments(parser: argparse.ArgumentParser) -> None:
@@ -233,6 +245,7 @@ def build_config(args: argparse.Namespace) -> SimulationConfig:
         ego_vehicle_id=args.vehicle_id,
         camera_width=args.camera_width,
         camera_height=args.camera_height,
+        spectator_mode=args.spectator,
     )
 
 
@@ -316,6 +329,7 @@ def handle_train(args: argparse.Namespace) -> None:
             val_split=args.val_split,
             device=args.device,
             num_workers=args.num_workers,
+            log_interval=args.log_interval,
         )
     )
     print(json.dumps(summary, sort_keys=True))

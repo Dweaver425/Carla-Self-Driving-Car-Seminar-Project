@@ -25,6 +25,7 @@ The software pipeline is working end-to-end:
 - dataset collection works in both mock mode and CARLA
 - model training works on CPU, CUDA, and Apple MPS
 - trained checkpoints can drive in closed-loop inference
+- CARLA inference reports sticky collision, obstacle, and blocked-vehicle diagnostics
 - fleet telemetry can be published to a central coordinator
 
 The latest public checkpoint in this repository is:
@@ -117,6 +118,10 @@ This project prefers `py -3.12` in command examples so the Python version is exp
 
 - On Windows, use `py -3.12`
 - On macOS or Linux, replace `py -3.12` with `python3`
+
+On Windows, the repo also includes `py.cmd`. When Command Prompt is opened in
+this project folder, it lets `py -3.12 ...` run through the project `.venv` even
+if the global Windows Python Launcher is not installed.
 
 ### 1. Create a Python environment
 
@@ -327,8 +332,15 @@ For Windows overnight runs, use:
 - `scripts/collect_overnight_windows.bat`: collects many smaller CARLA autopilot segments back-to-back
 - `scripts/train_overnight_segments_windows.bat`: trains one model from all collected `segment_*` folders
 - `scripts/package_segmented_dataset.py`: rewrites many `segment_*` folders into one combined dataset TAR for easier transfer and later training
+- `scripts/train_carla_tar_index_windows.bat`: trains from a TAR-indexed CARLA dataset on CUDA
+- `scripts/check_training_status_windows.ps1`: checks training process, GPU status, and training log output
 
 The collection script is safer for long runs because completed segments remain usable even if the machine stops during the night.
+
+For very large CARLA datasets, do not fully extract millions of images unless
+there is a specific reason. The preferred workflow is to keep the combined TAR,
+build/use the TAR image index, and train from the dataset root that contains
+`manifest.jsonl`, `metadata.json`, and `tar_image_index.jsonl`.
 
 ## Using CARLA Traffic With This Project
 

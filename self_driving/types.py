@@ -46,3 +46,5 @@ class DrivingObservation:
     lane_offset_m: float | None = None
     heading_error_deg: float | None = None
     collision_detected: bool = False
+    collision_details: dict[str, Any] | None = None
+    obstacle_details: dict[str, Any] | None = None

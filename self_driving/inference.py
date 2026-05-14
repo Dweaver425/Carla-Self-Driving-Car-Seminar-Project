@@ -31,13 +31,23 @@ class ModelController:
         steering = clamp(float(outputs[1]), -1.0, 1.0)
         brake = clamp(float(outputs[2]), 0.0, 1.0)
 
+        # The training labels can contain small brake values while the vehicle is
+        # trying to launch. In CARLA that can pin the car in place, so treat weak
+        # braking as noise while we are still below the target speed.
+        if observation.state.speed_mps < self.target_speed_mps and brake < 0.18:
+            brake = 0.0
+
+        if observation.state.speed_mps < 1.0 and throttle > 0.2:
+            throttle = max(throttle, 0.55)
+            brake = 0.0
+
         # Add a lightweight speed guardrail so an overconfident model does not keep accelerating.
         if observation.state.speed_mps > self.target_speed_mps + 1.0:
             throttle = min(throttle, 0.1)
             brake = max(brake, 0.15)
 
         # Do not send strong throttle and brake together; keep the command internally consistent.
-        if throttle > 0.2 and brake > 0.2:
+        if throttle > 0.2 and brake > 0.0 and observation.state.speed_mps < self.target_speed_mps:
             brake = 0.0
 
         return ControlCommand(throttle=throttle, steering=steering, brake=brake)

@@ -9,6 +9,11 @@ This project prefers `py -3.12` in command examples so the Python version is exp
 - On Windows, use `py -3.12`
 - On macOS or Linux, replace `py -3.12` with `python3`
 
+On Windows, the repo includes `py.cmd` so this command style works from the
+project folder even if the global Windows Python Launcher is missing. The shim
+runs `.venv\Scripts\python.exe`, which is the environment that has the project
+dependencies installed.
+
 You normally run the project through one file:
 
 ```bash
@@ -47,6 +52,7 @@ These flags are used by `demo`, `collect`, and `infer`.
 | `--vehicle-id` | `string` | `ego-001` | Vehicle name used in logs and telemetry. |
 | `--camera-width` | `int` | `160` | Camera image width in pixels. |
 | `--camera-height` | `int` | `90` | Camera image height in pixels. |
+| `--spectator` | `none`, `chase`, or `hood` | `none` | Move CARLA's viewport with the ego vehicle. `hood` is POV-like, `chase` follows from behind. |
 | `--target-speed` | `float` | `8.0` | Desired speed in meters per second. |
 | `--publish-url` | `string` | `None` | Server URL for telemetry, such as `http://127.0.0.1:8765/telemetry`. |
 | `--quiet` | flag | `False` | Show only the final summary instead of per-step output. |
@@ -176,6 +182,7 @@ py -3.12 main.py train --dataset <episode_dir> [options]
 | `--val-split` | `float` | `0.2` | no | Part of the dataset reserved for validation. |
 | `--device` | `string` | `None` | no | Force a Torch device such as `cpu`, `mps`, or `cuda`. |
 | `--num-workers` | `int` | `0` | no | Number of parallel workers used to load images during training. |
+| `--log-interval` | `int` | `100` | no | Print training speed and loss every N batches. Use `0` to disable. |
 
 ### Training cheat sheet
 
@@ -204,6 +211,7 @@ Recommended starting points:
 - quick test: `--epochs 3 --batch-size 16 --num-workers 4 --device cpu`
 - larger run: `--epochs 8 --batch-size 16 --num-workers 6 --device cpu`
 - GPU run: `--epochs 8 --batch-size 16 --num-workers 6 --device cuda`
+- large CUDA TAR-index run: `--epochs 4 --batch-size 256 --num-workers 8 --device cuda --val-split 0.1`
 
 ### Example commands
 
@@ -212,6 +220,7 @@ py -3.12 main.py train --dataset data/episodes/mock_run_01
 py -3.12 main.py train --dataset data/episodes/mock_run_01 --epochs 10 --batch-size 8
 py -3.12 main.py train --dataset data/episodes/carla_run_01 data/episodes/carla_run_02 --output models/carla_combined.pt --num-workers 4
 py -3.12 main.py train --dataset data/episodes/carla_run_01 --output models/carla_model.pt --device cuda
+py -3.12 main.py train --dataset data/raw/carla_weekend_combined/carla_weekend_combined --output models/carla_weekend_tar_index_cuda.pt --device cuda --epochs 4 --batch-size 256 --num-workers 8 --val-split 0.1 --log-interval 100
 ```
 
 ## Command: `infer`
@@ -244,7 +253,17 @@ py -3.12 main.py infer --checkpoint <model_path> [options]
 py -3.12 main.py infer --backend mock --checkpoint models/driving_model.pt
 py -3.12 main.py infer --backend mock --checkpoint models/driving_model.pt --steps 200 --quiet
 py -3.12 main.py infer --backend carla --checkpoint models/carla_model.pt --publish-url http://127.0.0.1:8765/telemetry
+py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 250 --spawn-index 1 --target-speed 8 --quiet
+py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 3000 --spawn-index 1 --target-speed 8 --spectator hood
 ```
+
+The final inference summary includes run-quality metrics such as
+`distance_traveled_m`, `average_speed_mps`, `max_speed_mps`,
+`average_throttle`, and `average_brake`. In CARLA, collision reporting is
+sticky for the full run: if the car hits something and later stops reporting a
+live collision event, the final `collision_detected` value still stays `true`.
+The summary can also include `first_collision_details`,
+`last_collision_details`, `closest_obstacle_details`, and `blocked_detected`.
 
 ## Command: `serve`
 
@@ -280,7 +299,7 @@ py -3.12 main.py serve --host 0.0.0.0 --port 8765
 py -3.12 main.py serve --db data/fleet/test.db --proximity-threshold 5.0 --stale-after 1.5
 ```
 
-## Two Common Workflows
+## Common Workflows
 
 ### Workflow 1: Train and test a model
 
@@ -291,7 +310,28 @@ py -3.12 main.py train --dataset data/episodes/run_01 --output models/driving_mo
 py -3.12 main.py infer --backend mock --checkpoint models/driving_model.pt --steps 100
 ```
 
-### Workflow 2: Run one ego vehicle with CARLA background traffic
+### Workflow 2: Evaluate a CARLA checkpoint
+
+Use this after CARLA is open and a checkpoint has been trained.
+
+```bash
+py -3.12 main.py env
+py -3.12 -c "import carla; c=carla.Client('127.0.0.1',2000); c.set_timeout(5.0); w=c.get_world(); print('frame:', w.get_snapshot().frame); print('map:', w.get_map().name)"
+py -3.12 main.py demo --backend carla --steps 100 --spawn-index 1 --target-speed 8 --quiet
+py -3.12 main.py infer --backend carla --checkpoint models/carla_model.pt --steps 250 --spawn-index 1 --target-speed 8 --quiet
+py -3.12 main.py infer --backend carla --checkpoint models/carla_model.pt --steps 1000 --spawn-index 1 --target-speed 8 --quiet
+```
+
+A large TAR-indexed dataset can be trained from a dataset root such as:
+
+```text
+data/raw/carla_weekend_combined/carla_weekend_combined
+```
+
+When using a TAR-indexed dataset, keep the source TAR because the index points
+into it and is not a copy of the images.
+
+### Workflow 3: Run one ego vehicle with CARLA background traffic
 
 Use this when you want your model or autopilot car to drive in a busier CARLA world without running multiple copies of `main.py`.
 
@@ -313,7 +353,7 @@ Important notes:
 - use one ego vehicle from this project at a time unless the runtime is upgraded for multi-ego support
 - background traffic is safer than running several copies of `main.py` in the same world
 
-### Workflow 2: Run the fleet server
+### Workflow 4: Run the fleet server
 
 Terminal 1:
 

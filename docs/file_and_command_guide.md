@@ -22,6 +22,10 @@ py -3.12 main.py <command> [options]
 
 Almost every other Python file supports `main.py`.
 
+On Windows, `py.cmd` is included at the repo root. It lets `py -3.12 ...` use
+the project `.venv` from Command Prompt even when the global Windows Python
+Launcher is not installed.
+
 ## If You Only Remember Three Things
 
 1. `main.py` is the control center.
@@ -34,6 +38,7 @@ Almost every other Python file supports `main.py`.
 | --- | --- | --- |
 | `main.py` | Main entrypoint for the whole project | This is the file you run |
 | `README.md` | Main project overview | Best place to start reading |
+| `py.cmd` | Windows command shim | Lets `py -3.12 ...` run the project venv from the repo folder |
 | `pyproject.toml` | Project metadata and Python requirement | Helps keep the environment consistent |
 | `.gitignore` | Tells Git which files not to track | Prevents local or generated files from being committed |
 
@@ -56,6 +61,21 @@ Almost every other Python file supports `main.py`.
 | `data/` | Stores generated outputs such as recorded episodes and fleet databases |
 
 This folder is mostly project output, not source code.
+
+Large CARLA datasets can also be stored as a dataset root such as:
+
+```text
+data\raw\carla_weekend_combined\carla_weekend_combined
+```
+
+When a dataset uses a TAR image index, it is backed by a source archive such as:
+
+```text
+C:\Carla Data\carla_weekend_combined.tar
+```
+
+The dataset uses `tar_image_index.jsonl` to read images directly from the TAR
+instead of requiring a full extraction into millions of PNG files.
 
 ## Source Code Folder: `self_driving/`
 
@@ -228,16 +248,19 @@ Simple purpose:
 
 Main parts:
 - `load_manifest_records()`
+- `load_tar_image_index()`
 - `DrivingDataset`
 
 What it does:
 - reads the manifest
-- loads images
+- loads images from disk when present
+- falls back to TAR-indexed image reads when needed
 - converts them into tensors
 - returns training targets
 
 Why skilled users care:
 - This file controls how recorded data becomes model input.
+- TAR-indexed datasets depend on the index file and the original TAR file.
 
 ## Simulator Files
 
@@ -408,6 +431,8 @@ What happens:
 - trains a model
 - saves a checkpoint
 - it can combine multiple recorded runs into one training job
+- saves epoch checkpoints during longer runs
+- prints training speed and loss when `--log-interval` is enabled
 
 Main files involved:
 - `main.py`
@@ -421,6 +446,8 @@ What happens:
 - the project loads a checkpoint
 - the model drives the vehicle
 - the loop can optionally record or publish telemetry
+- CARLA runs can move the spectator camera with the ego car using `--spectator hood` or `--spectator chase`
+- the final summary includes distance, speed, throttle, brake, collision, and obstacle metrics
 
 Main files involved:
 - `main.py`
@@ -481,12 +508,15 @@ py -3.12 main.py collect --backend carla --controller autopilot --steps 1000 --o
 ```bash
 py -3.12 main.py train --dataset data/episodes/run_01 --output models/driving_model.pt
 py -3.12 main.py train --dataset data/episodes/run_01 data/episodes/run_02 --output models/driving_model.pt --num-workers 4
+py -3.12 main.py train --dataset data/raw/carla_weekend_combined/carla_weekend_combined --output models/carla_weekend_tar_index_cuda.pt --device cuda --epochs 4 --batch-size 256 --num-workers 8 --val-split 0.1
 ```
 
 ### Run the trained model
 
 ```bash
 py -3.12 main.py infer --backend mock --checkpoint models/driving_model.pt --steps 100
+py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 250 --spawn-index 1 --target-speed 8 --quiet
+py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 3000 --spawn-index 1 --target-speed 8 --spectator hood
 ```
 
 ### Start the fleet server
@@ -590,6 +620,21 @@ Why this was useful:
 In one sentence:
 
 - several short CARLA training runs were collected and combined into one model, that model was tested and retrained iteratively, and once the workflow was stable, a long CARLA autopilot run was started to build a stronger dataset for the next training cycle.
+
+## Large CARLA Dataset Workflow
+
+For large CARLA datasets, keep the project flow the same: train a checkpoint,
+then evaluate it in CARLA. TAR-indexed datasets let the loader read images from
+the source archive without extracting millions of files.
+
+Useful health and evaluation commands:
+
+```bash
+py -3.12 main.py env
+py -3.12 -c "import carla; c=carla.Client('127.0.0.1',2000); c.set_timeout(5.0); w=c.get_world(); print('frame:', w.get_snapshot().frame); print('map:', w.get_map().name)"
+py -3.12 main.py demo --backend carla --steps 100 --spawn-index 1 --target-speed 8 --quiet
+py -3.12 main.py infer --backend carla --checkpoint models/carla_model.pt --steps 250 --spawn-index 1 --target-speed 8 --quiet
+```
 
 ## Best Mental Model
 

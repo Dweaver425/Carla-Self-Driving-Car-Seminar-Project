@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 BackendName = Literal["mock", "carla"]
+SpectatorMode = Literal["none", "chase", "hood"]
 
 
 @dataclass(slots=True)
@@ -22,3 +23,4 @@ class SimulationConfig:
     camera_width: int = 160
     camera_height: int = 90
     camera_fov: int = 100
+    spectator_mode: SpectatorMode = "none"

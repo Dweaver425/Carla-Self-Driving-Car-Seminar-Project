@@ -10,6 +10,7 @@ set "DEVICE=cuda"
 set "EPOCHS=10"
 set "BATCH_SIZE=16"
 set "NUM_WORKERS=6"
+set "LOG_INTERVAL=100"
 
 set "DATASETS="
 for /d %%D in ("%DATA_ROOT%\segment_*") do (
@@ -21,4 +22,4 @@ if "%DATASETS%"=="" (
     exit /b 1
 )
 
-py -3.12 main.py train --dataset %DATASETS% --output "%OUTPUT%" --device %DEVICE% --epochs %EPOCHS% --batch-size %BATCH_SIZE% --num-workers %NUM_WORKERS%
+.\.venv\Scripts\python.exe -u main.py train --dataset %DATASETS% --output "%OUTPUT%" --device %DEVICE% --epochs %EPOCHS% --batch-size %BATCH_SIZE% --num-workers %NUM_WORKERS% --log-interval %LOG_INTERVAL%

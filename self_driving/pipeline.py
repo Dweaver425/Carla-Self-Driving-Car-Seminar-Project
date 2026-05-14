@@ -27,10 +27,66 @@ def run_loop(
             on_client_ready(client)
 
         observation = client.get_observation()
+        start_state = observation.state
+        previous_pose = start_state.pose
+        distance_traveled_m = 0.0
+        max_speed_mps = start_state.speed_mps
+        total_speed_mps = 0.0
+        total_throttle = 0.0
+        total_brake = 0.0
+        any_collision_detected = observation.collision_detected
+        collision_count = 1 if observation.collision_detected else 0
+        first_collision_step = 0 if observation.collision_detected else None
+        first_collision_details = observation.collision_details
+        last_collision_details = observation.collision_details
+        closest_obstacle_distance_m: float | None = None
+        closest_obstacle_details: dict[str, Any] | None = None
+        blocked_detected = False
+        first_blocked_step: int | None = None
+        blocked_steps = 0
         for step in range(steps):
             command = controller.command(observation, step)
             observation = client.step(command)
             applied_command = observation.state.control
+            pose = observation.state.pose
+            step_distance_m = (
+                (pose.x - previous_pose.x) ** 2
+                + (pose.y - previous_pose.y) ** 2
+            ) ** 0.5
+            distance_traveled_m += step_distance_m
+            previous_pose = pose
+            max_speed_mps = max(max_speed_mps, observation.state.speed_mps)
+            total_speed_mps += observation.state.speed_mps
+            total_throttle += applied_command.throttle
+            total_brake += applied_command.brake
+
+            if observation.collision_detected:
+                any_collision_detected = True
+                collision_count += 1
+                last_collision_details = observation.collision_details
+                if first_collision_step is None:
+                    first_collision_step = step
+                    first_collision_details = observation.collision_details
+
+            if observation.obstacle_details is not None:
+                obstacle_distance = observation.obstacle_details.get("distance_m")
+                if isinstance(obstacle_distance, int | float) and (
+                    closest_obstacle_distance_m is None
+                    or obstacle_distance < closest_obstacle_distance_m
+                ):
+                    closest_obstacle_distance_m = float(obstacle_distance)
+                    closest_obstacle_details = observation.obstacle_details
+
+            commanded_to_move = applied_command.throttle > 0.25 and applied_command.brake < 0.2
+            not_moving = observation.state.speed_mps < 0.35 and step_distance_m < 0.03
+            if step > 20 and commanded_to_move and not_moving:
+                blocked_steps += 1
+            else:
+                blocked_steps = 0
+            if not blocked_detected and blocked_steps >= 20:
+                blocked_detected = True
+                first_blocked_step = step
+
             message = FleetMessage.from_observation(observation)
             alerts = publisher.publish(message) if publisher else []
             alerts_count += len(alerts)
@@ -48,6 +104,10 @@ def run_loop(
                     "fleet_message": message.as_dict(),
                     "collision_detected": observation.collision_detected,
                 }
+                if observation.collision_details is not None:
+                    payload["collision_details"] = observation.collision_details
+                if observation.obstacle_details is not None:
+                    payload["obstacle_details"] = observation.obstacle_details
                 if observation.lane_offset_m is not None:
                     payload["lane_offset_m"] = observation.lane_offset_m
                 if observation.heading_error_deg is not None:
@@ -64,10 +124,25 @@ def run_loop(
     final_state = observation.state
     return {
         "alerts": alerts_count,
-        "collision_detected": observation.collision_detected,
+        "average_brake": total_brake / max(steps, 1),
+        "average_speed_mps": total_speed_mps / max(steps, 1),
+        "average_throttle": total_throttle / max(steps, 1),
+        "blocked_detected": blocked_detected,
+        "carla_collision_detected": any_collision_detected,
+        "closest_obstacle_details": closest_obstacle_details,
+        "closest_obstacle_distance_m": closest_obstacle_distance_m,
+        "collision_count": collision_count,
+        "collision_detected": any_collision_detected or blocked_detected,
+        "distance_traveled_m": distance_traveled_m,
         "final_pose": final_state.pose.as_dict(),
         "final_speed_mps": final_state.speed_mps,
+        "first_blocked_step": first_blocked_step,
+        "first_collision_details": first_collision_details,
+        "first_collision_step": first_collision_step,
         "frames": final_state.frame,
+        "last_collision_details": last_collision_details,
+        "max_speed_mps": max_speed_mps,
+        "start_pose": start_state.pose.as_dict(),
         "steps": steps,
         "vehicle_id": final_state.vehicle_id,
     }

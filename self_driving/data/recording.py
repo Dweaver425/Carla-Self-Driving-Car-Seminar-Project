@@ -62,6 +62,8 @@ class EpisodeRecorder:
             "lane_offset_m": observation.lane_offset_m,
             "heading_error_deg": observation.heading_error_deg,
             "collision_detected": observation.collision_detected,
+            "collision_details": observation.collision_details,
+            "obstacle_details": observation.obstacle_details,
             "fleet_message": message.as_dict(),
             "alerts": alerts or [],
         }
