@@ -486,19 +486,21 @@ Main files involved:
 ### Command: `infer`
 
 Purpose:
-- run a saved checkpoint in the driving loop
+- run a saved checkpoint or CARLA autopilot in the driving loop
 
 Base command:
 
 ```bash
 py -3.12 main.py infer --checkpoint <model_path> [options]
+py -3.12 main.py infer --backend carla --autopilot-model [options]
 ```
 
 What happens:
-- the project loads a checkpoint
-- the model drives the vehicle
+- the project loads a checkpoint, unless `--autopilot-model` is used
+- the checkpoint model or CARLA autopilot drives the vehicle
 - the loop can optionally record or publish telemetry
 - CARLA runs can move the spectator camera with the ego car using `--spectator hood` or `--spectator chase`
+- CARLA autopilot can be used directly as the active model with `--autopilot-model`
 - CARLA autopilot can be used as a guide with `--autopilot-guide`, where autopilot drives and the model is compared against it
 - the final summary includes distance, speed, throttle, brake, collision, and obstacle metrics
 
@@ -617,6 +619,7 @@ Purpose:
 
 ```bash
 py -3.12 main.py infer --backend mock --checkpoint models/driving_model.pt --steps 100
+py -3.12 main.py infer --backend carla --autopilot-model --steps 3000 --spawn-index 1 --target-speed 8 --spectator chase
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 300 --spawn-index 1 --target-speed 4 --spectator chase
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 3000 --spawn-index 1 --target-speed 8 --spectator hood
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 1000 --spawn-index 1 --target-speed 8 --spectator chase --autopilot-guide --output data/episodes/guided_spawn1_chase_01
@@ -750,6 +753,7 @@ Useful health and evaluation commands:
 py -3.12 main.py env
 py -3.12 -c "import carla; c=carla.Client('127.0.0.1',2000); c.set_timeout(5.0); w=c.get_world(); print('frame:', w.get_snapshot().frame); print('map:', w.get_map().name)"
 py -3.12 main.py demo --backend carla --steps 100 --spawn-index 1 --target-speed 8 --quiet
+py -3.12 main.py infer --backend carla --autopilot-model --steps 3000 --spawn-index 1 --target-speed 8 --spectator chase
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 300 --spawn-index 1 --target-speed 4 --spectator chase
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 1000 --spawn-index 1 --target-speed 8 --spectator chase --autopilot-guide --output data/episodes/guided_spawn1_chase_01
 ```

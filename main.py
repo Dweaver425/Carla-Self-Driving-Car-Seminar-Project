@@ -100,7 +100,11 @@ def build_parser() -> argparse.ArgumentParser:
     infer_parser = subparsers.add_parser("infer", help="Run a trained model in the loop.")
     add_simulation_arguments(infer_parser)
     add_run_arguments(infer_parser)
-    infer_parser.add_argument("--checkpoint", required=True, help="Model checkpoint path.")
+    infer_parser.add_argument(
+        "--checkpoint",
+        default=None,
+        help="Model checkpoint path. Required unless --autopilot-model is used.",
+    )
     infer_parser.add_argument(
         "--output",
         default=None,
@@ -112,6 +116,14 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "With the CARLA backend, let CARLA autopilot drive while the model "
             "still predicts controls for comparison."
+        ),
+    )
+    infer_parser.add_argument(
+        "--autopilot-model",
+        action="store_true",
+        help=(
+            "With the CARLA backend, use CARLA autopilot as the active driving "
+            "model. No checkpoint is required."
         ),
     )
     infer_parser.add_argument("--show-env", action="store_true", help="Print environment details.")
@@ -278,6 +290,8 @@ def make_controller(args: argparse.Namespace, controller_name: str) -> Any:
         autopilot_guide = getattr(args, "autopilot_guide", False)
         if autopilot_guide and args.backend != "carla":
             raise ValueError("Autopilot guidance is only available with the CARLA backend.")
+        if args.checkpoint is None:
+            raise ValueError("The infer command requires --checkpoint unless --autopilot-model is used.")
         return ModelController(
             checkpoint_path=args.checkpoint,
             target_speed_mps=args.target_speed,
@@ -388,17 +402,28 @@ def main() -> None:
             handle_train(args)
             return
         if args.command == "infer":
+            if args.autopilot_model and args.backend != "carla":
+                raise ValueError("The --autopilot-model option is only available with the CARLA backend.")
+            if args.autopilot_model and args.autopilot_guide:
+                raise ValueError("Use either --autopilot-model or --autopilot-guide, not both.")
+            if not args.autopilot_model and args.checkpoint is None:
+                raise ValueError("The infer command requires --checkpoint unless --autopilot-model is used.")
+
+            controller_name = "autopilot" if args.autopilot_model else "model"
             recorder = None
             if args.output is not None:
-                recorder_controller_name = (
-                    "model_autopilot_guide" if args.autopilot_guide else "model"
-                )
+                if args.autopilot_model:
+                    recorder_controller_name = "autopilot_model"
+                elif args.autopilot_guide:
+                    recorder_controller_name = "model_autopilot_guide"
+                else:
+                    recorder_controller_name = "model"
                 recorder = EpisodeRecorder(
                     output_dir=Path(args.output),
                     config=build_config(args),
                     controller_name=recorder_controller_name,
                 )
-            handle_drive(args, controller_name="model", recorder=recorder)
+            handle_drive(args, controller_name=controller_name, recorder=recorder)
             return
         if args.command == "serve":
             handle_serve(args)

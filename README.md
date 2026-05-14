@@ -25,6 +25,7 @@ The software pipeline is working end-to-end:
 - dataset collection works in both mock mode and CARLA
 - model training works on CPU, CUDA, and Apple MPS
 - trained checkpoints can drive in closed-loop inference
+- CARLA autopilot can run as a first-class inference model with no checkpoint
 - CARLA inference reports sticky collision, obstacle, and blocked-vehicle diagnostics
 - CARLA autopilot can guide inference runs while model controls are logged for comparison
 - fleet telemetry can be published to a central coordinator
@@ -273,18 +274,20 @@ Training settings in plain English:
 ### Command: `infer`
 
 Purpose:
-- load a checkpoint and run it in the driving loop
+- run either a trained checkpoint or CARLA autopilot in the driving loop
 
 Base command:
 
 ```bash
 py -3.12 main.py infer --checkpoint <model_path> [options]
+py -3.12 main.py infer --backend carla --autopilot-model [options]
 ```
 
 Example commands:
 
 ```bash
 py -3.12 main.py infer --backend mock --checkpoint models/driving_model.pt --steps 100
+py -3.12 main.py infer --backend carla --autopilot-model --steps 3000 --spawn-index 1 --target-speed 8 --spectator chase
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 300 --spawn-index 1 --target-speed 4 --spectator chase
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 1000 --spawn-index 1 --target-speed 8 --spectator chase --autopilot-guide --output data/episodes/guided_spawn1_chase_01
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 3000 --spawn-index 1 --target-speed 8 --spectator hood
@@ -298,6 +301,7 @@ Output to check:
 - `average_abs_control_delta` when using `--autopilot-guide`
 
 Use `--spectator chase` for third person. Use `--spectator hood` for a first-person-style view.
+Use `--autopilot-model` when you want CARLA's proven Traffic Manager behavior as the active model.
 Use `--autopilot-guide` when you want CARLA autopilot to drive safely while the model is compared against it.
 
 ### Command: `serve`

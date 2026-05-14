@@ -28,7 +28,7 @@ py -3.12 main.py <command> [options]
 | `demo` | Drive without saving data | Use for quick testing |
 | `collect` | Save a driving dataset | Use before training |
 | `train` | Train the driving model | Use after collecting data |
-| `infer` | Let the trained model drive | Use to test the model |
+| `infer` | Let a trained checkpoint or CARLA autopilot drive | Use to test driving behavior |
 | `serve` | Start the fleet server | Use when vehicles should publish telemetry |
 
 ## Command Section Format
@@ -250,25 +250,27 @@ py -3.12 main.py train --dataset data/raw/carla_weekend_combined/carla_weekend_c
 
 ### What it does
 
-Loads a trained model and lets it drive the vehicle.
+Loads a trained model or uses CARLA autopilot as the active driving model.
 
 ### Good time to use it
 
-Use `infer` after you have trained a model.
+Use `infer` after you have trained a model, or use `--autopilot-model` when you want CARLA's proven Traffic Manager behavior.
 
 ### Base command
 
 ```bash
 py -3.12 main.py infer --checkpoint <model_path> [options]
+py -3.12 main.py infer --backend carla --autopilot-model [options]
 ```
 
 ### Extra parameters for `infer`
 
 | Flag | Type | Default | Required | Simple meaning |
 | --- | --- | --- | --- | --- |
-| `--checkpoint` | `string/path` | none | yes | Path to the trained model file. |
+| `--checkpoint` | `string/path` | none | conditional | Path to the trained model file. Required unless `--autopilot-model` is used. |
 | `--output` | `string/path` | `None` | no | If set, save the inference run as a new episode. |
 | `--autopilot-guide` | flag | `False` | no | CARLA autopilot drives while the model still predicts controls for comparison. |
+| `--autopilot-model` | flag | `False` | no | CARLA autopilot is the active driving model. No checkpoint is required. |
 | `--show-env` | flag | `False` | no | Print environment details before the run starts. |
 
 ### Example commands
@@ -276,6 +278,7 @@ py -3.12 main.py infer --checkpoint <model_path> [options]
 ```bash
 py -3.12 main.py infer --backend mock --checkpoint models/driving_model.pt
 py -3.12 main.py infer --backend mock --checkpoint models/driving_model.pt --steps 200 --quiet
+py -3.12 main.py infer --backend carla --autopilot-model --steps 3000 --spawn-index 1 --target-speed 8 --spectator chase
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --publish-url http://127.0.0.1:8765/telemetry --spectator chase
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 300 --spawn-index 1 --target-speed 4 --spectator chase
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 3000 --spawn-index 1 --target-speed 8 --spectator hood
@@ -289,6 +292,7 @@ sticky for the full run: if the car hits something and later stops reporting a
 live collision event, the final `collision_detected` value still stays `true`.
 The summary can also include `first_collision_details`,
 `last_collision_details`, `closest_obstacle_details`, and `blocked_detected`.
+With `--autopilot-model`, CARLA Traffic Manager owns the driving controls.
 With `--autopilot-guide`, the summary also includes
 `average_abs_control_delta` and `max_abs_control_delta`, which show how far the
 model's predictions were from CARLA autopilot's applied controls.
@@ -359,6 +363,7 @@ Use this after CARLA is open and a checkpoint has been trained.
 py -3.12 main.py env
 py -3.12 -c "import carla; c=carla.Client('127.0.0.1',2000); c.set_timeout(5.0); w=c.get_world(); print('frame:', w.get_snapshot().frame); print('map:', w.get_map().name)"
 py -3.12 main.py demo --backend carla --steps 100 --spawn-index 1 --target-speed 8 --quiet
+py -3.12 main.py infer --backend carla --autopilot-model --steps 3000 --spawn-index 1 --target-speed 8 --spectator chase
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 300 --spawn-index 1 --target-speed 4 --spectator chase
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 1000 --spawn-index 1 --target-speed 8 --spectator chase --autopilot-guide --output data/episodes/guided_spawn1_chase_01
 ```
@@ -385,7 +390,7 @@ py -3.12 PythonAPI/examples/generate_traffic.py --host 127.0.0.1 --port 2000 --n
 Terminal 2, from this project folder:
 
 ```bash
-py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 1000 --spawn-index 1 --target-speed 8 --spectator chase --autopilot-guide
+py -3.12 main.py infer --backend carla --autopilot-model --steps 5000 --spawn-index 1 --target-speed 8 --spectator chase
 ```
 
 Important notes:
