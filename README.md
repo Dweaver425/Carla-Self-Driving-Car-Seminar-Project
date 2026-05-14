@@ -417,6 +417,7 @@ For Windows overnight runs, use:
 - `scripts/package_segmented_dataset.py`: rewrites many `segment_*` folders into one combined dataset TAR for easier transfer and later training
 - `scripts/train_carla_tar_index_windows.bat`: trains from a TAR-indexed CARLA dataset on CUDA
 - `scripts/check_training_status_windows.ps1`: checks training process, GPU status, and training log output
+- `scripts/collect_traffic_pedestrians_30min_windows.bat`: records one 30-sim-minute CARLA run with traffic and pedestrians
 
 The collection script is safer for long runs because completed segments remain usable even if the machine stops during the night.
 
@@ -440,7 +441,7 @@ Typical pattern:
 Run this from the CARLA installation folder if `generate_traffic.py` is available there:
 
 ```bash
-py -3.12 PythonAPI/examples/generate_traffic.py --host 127.0.0.1 --port 2000 --number-of-vehicles 30
+py -3.12 PythonAPI/examples/generate_traffic.py --host 127.0.0.1 --port 2000 --tm-port 8000 --number-of-vehicles 30 --number-of-walkers 60 --safe
 ```
 
 ### Terminal 2: this project
@@ -449,6 +450,12 @@ Run your collection or inference command from this project folder:
 
 ```bash
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 1000 --spawn-index 1 --target-speed 8 --spectator chase --autopilot-guide
+```
+
+For a 30-sim-minute traffic and pedestrian data collection run:
+
+```bash
+scripts\collect_traffic_pedestrians_30min_windows.bat
 ```
 
 Important rule:

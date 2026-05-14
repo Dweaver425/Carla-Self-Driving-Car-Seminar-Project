@@ -377,14 +377,14 @@ data/raw/carla_weekend_combined/carla_weekend_combined
 When using a TAR-indexed dataset, keep the source TAR because the index points
 into it and is not a copy of the images.
 
-### Workflow 3: Run one ego vehicle with CARLA background traffic
+### Workflow 3: Run one ego vehicle with CARLA background traffic and pedestrians
 
 Use this when you want your model or autopilot car to drive in a busier CARLA world without running multiple copies of `main.py`.
 
 Terminal 1, from the CARLA installation folder:
 
 ```bash
-py -3.12 PythonAPI/examples/generate_traffic.py --host 127.0.0.1 --port 2000 --number-of-vehicles 30
+py -3.12 PythonAPI/examples/generate_traffic.py --host 127.0.0.1 --port 2000 --tm-port 8000 --number-of-vehicles 30 --number-of-walkers 60 --safe
 ```
 
 Terminal 2, from this project folder:
@@ -393,9 +393,23 @@ Terminal 2, from this project folder:
 py -3.12 main.py infer --backend carla --autopilot-model --steps 5000 --spawn-index 1 --target-speed 8 --spectator chase
 ```
 
+For a 30-sim-minute guided data collection run, use:
+
+```bash
+py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 36000 --spawn-index 1 --target-speed 8 --spectator chase --autopilot-guide --output data/episodes/traffic_ped_guided_30min --quiet
+```
+
+Or run the Windows helper:
+
+```bash
+scripts\collect_traffic_pedestrians_30min_windows.bat
+```
+
 Important notes:
 
 - both commands must point to the same CARLA host and port
+- the traffic script adds the background vehicles and pedestrians
+- `36000` steps is 30 simulated minutes at `fixed_delta_seconds=0.05`
 - use one ego vehicle from this project at a time unless the runtime is upgraded for multi-ego support
 - background traffic is safer than running several copies of `main.py` in the same world
 

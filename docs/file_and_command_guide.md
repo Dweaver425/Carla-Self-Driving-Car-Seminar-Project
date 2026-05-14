@@ -623,6 +623,7 @@ py -3.12 main.py infer --backend carla --autopilot-model --steps 3000 --spawn-in
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 300 --spawn-index 1 --target-speed 4 --spectator chase
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 3000 --spawn-index 1 --target-speed 8 --spectator hood
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 1000 --spawn-index 1 --target-speed 8 --spectator chase --autopilot-guide --output data/episodes/guided_spawn1_chase_01
+py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 36000 --spawn-index 1 --target-speed 8 --spectator chase --autopilot-guide --output data/episodes/traffic_ped_guided_30min --quiet
 ```
 
 Output to check:
@@ -756,6 +757,13 @@ py -3.12 main.py demo --backend carla --steps 100 --spawn-index 1 --target-speed
 py -3.12 main.py infer --backend carla --autopilot-model --steps 3000 --spawn-index 1 --target-speed 8 --spectator chase
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 300 --spawn-index 1 --target-speed 4 --spectator chase
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 1000 --spawn-index 1 --target-speed 8 --spectator chase --autopilot-guide --output data/episodes/guided_spawn1_chase_01
+```
+
+For a 30-sim-minute traffic and pedestrian collection run, start CARLA's traffic
+script in one terminal and then run:
+
+```bash
+scripts\collect_traffic_pedestrians_30min_windows.bat
 ```
 
 ## Best Mental Model
