@@ -766,6 +766,13 @@ script in one terminal and then run:
 scripts\collect_traffic_pedestrians_30min_windows.bat
 ```
 
+If CARLA's `generate_traffic.py` says `ModuleNotFoundError: No module named
+'carla'`, install the CARLA Python API once from the CARLA folder:
+
+```bash
+py -3.12 -m pip install PythonAPI/carla/dist/carla-0.9.16-cp312-cp312-win_amd64.whl
+```
+
 ## Best Mental Model
 
 - `main.py` = the control center

@@ -384,8 +384,12 @@ Use this when you want your model or autopilot car to drive in a busier CARLA wo
 Terminal 1, from the CARLA installation folder:
 
 ```bash
+py -3.12 -m pip install PythonAPI/carla/dist/carla-0.9.16-cp312-cp312-win_amd64.whl
 py -3.12 PythonAPI/examples/generate_traffic.py --host 127.0.0.1 --port 2000 --tm-port 8000 --number-of-vehicles 30 --number-of-walkers 60 --safe
 ```
+
+The install command is only needed once, or whenever `generate_traffic.py`
+prints `ModuleNotFoundError: No module named 'carla'`.
 
 Terminal 2, from this project folder:
 

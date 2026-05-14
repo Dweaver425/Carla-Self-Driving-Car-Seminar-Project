@@ -19,6 +19,9 @@ set "OUTPUT=data\episodes\traffic_ped_guided_30min_!STAMP!"
 
 echo 30 simulated minutes = %STEPS% steps at fixed_delta_seconds 0.05.
 echo.
+echo If generate_traffic.py says "No module named carla", run this once from the CARLA folder:
+echo py -3.12 -m pip install PythonAPI\carla\dist\carla-0.9.16-cp312-cp312-win_amd64.whl
+echo.
 echo Terminal 1, from the CARLA installation folder:
 echo py -3.12 PythonAPI\examples\generate_traffic.py --host %HOST% --port %PORT% --tm-port %TM_PORT% --number-of-vehicles %VEHICLES% --number-of-walkers %WALKERS% --safe
 echo.
