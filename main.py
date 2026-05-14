@@ -106,6 +106,14 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Optional episode directory to record the inference run.",
     )
+    infer_parser.add_argument(
+        "--autopilot-guide",
+        action="store_true",
+        help=(
+            "With the CARLA backend, let CARLA autopilot drive while the model "
+            "still predicts controls for comparison."
+        ),
+    )
     infer_parser.add_argument("--show-env", action="store_true", help="Print environment details.")
 
     serve_parser = subparsers.add_parser(
@@ -267,9 +275,13 @@ def make_controller(args: argparse.Namespace, controller_name: str) -> Any:
             raise ValueError("The autopilot controller is only available with the CARLA backend.")
         return AutopilotController()
     if controller_name == "model":
+        autopilot_guide = getattr(args, "autopilot_guide", False)
+        if autopilot_guide and args.backend != "carla":
+            raise ValueError("Autopilot guidance is only available with the CARLA backend.")
         return ModelController(
             checkpoint_path=args.checkpoint,
             target_speed_mps=args.target_speed,
+            autopilot_guide=autopilot_guide,
         )
     raise ValueError(f"Unsupported controller: {controller_name}")
 
@@ -378,10 +390,13 @@ def main() -> None:
         if args.command == "infer":
             recorder = None
             if args.output is not None:
+                recorder_controller_name = (
+                    "model_autopilot_guide" if args.autopilot_guide else "model"
+                )
                 recorder = EpisodeRecorder(
                     output_dir=Path(args.output),
                     config=build_config(args),
-                    controller_name="model",
+                    controller_name=recorder_controller_name,
                 )
             handle_drive(args, controller_name="model", recorder=recorder)
             return

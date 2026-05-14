@@ -245,6 +245,7 @@ py -3.12 main.py infer --checkpoint <model_path> [options]
 | --- | --- | --- | --- | --- |
 | `--checkpoint` | `string/path` | none | yes | Path to the trained model file. |
 | `--output` | `string/path` | `None` | no | If set, save the inference run as a new episode. |
+| `--autopilot-guide` | flag | `False` | no | CARLA autopilot drives while the model still predicts controls for comparison. |
 | `--show-env` | flag | `False` | no | Print environment details before the run starts. |
 
 ### Example commands
@@ -255,6 +256,7 @@ py -3.12 main.py infer --backend mock --checkpoint models/driving_model.pt --ste
 py -3.12 main.py infer --backend carla --checkpoint models/carla_model.pt --publish-url http://127.0.0.1:8765/telemetry
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 250 --spawn-index 1 --target-speed 8 --quiet
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 3000 --spawn-index 1 --target-speed 8 --spectator hood
+py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 1000 --spawn-index 1 --target-speed 8 --spectator chase --autopilot-guide
 ```
 
 The final inference summary includes run-quality metrics such as
@@ -264,6 +266,9 @@ sticky for the full run: if the car hits something and later stops reporting a
 live collision event, the final `collision_detected` value still stays `true`.
 The summary can also include `first_collision_details`,
 `last_collision_details`, `closest_obstacle_details`, and `blocked_detected`.
+With `--autopilot-guide`, the summary also includes
+`average_abs_control_delta` and `max_abs_control_delta`, which show how far the
+model's predictions were from CARLA autopilot's applied controls.
 
 ## Command: `serve`
 

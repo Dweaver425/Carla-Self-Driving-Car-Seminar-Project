@@ -447,6 +447,7 @@ What happens:
 - the model drives the vehicle
 - the loop can optionally record or publish telemetry
 - CARLA runs can move the spectator camera with the ego car using `--spectator hood` or `--spectator chase`
+- CARLA autopilot can be used as a guide with `--autopilot-guide`, where autopilot drives and the model is compared against it
 - the final summary includes distance, speed, throttle, brake, collision, and obstacle metrics
 
 Main files involved:
@@ -517,6 +518,7 @@ py -3.12 main.py train --dataset data/raw/carla_weekend_combined/carla_weekend_c
 py -3.12 main.py infer --backend mock --checkpoint models/driving_model.pt --steps 100
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 250 --spawn-index 1 --target-speed 8 --quiet
 py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 3000 --spawn-index 1 --target-speed 8 --spectator hood
+py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 1000 --spawn-index 1 --target-speed 8 --spectator chase --autopilot-guide
 ```
 
 ### Start the fleet server

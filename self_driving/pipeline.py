@@ -20,6 +20,9 @@ def run_loop(
 ) -> dict[str, Any]:
     client.setup()
     alerts_count = 0
+    autopilot_guidance_enabled = bool(
+        getattr(controller, "autopilot_guidance_enabled", False)
+    )
 
     try:
         on_client_ready = getattr(controller, "on_client_ready", None)
@@ -44,10 +47,30 @@ def run_loop(
         blocked_detected = False
         first_blocked_step: int | None = None
         blocked_steps = 0
+        total_abs_control_delta = {
+            "throttle": 0.0,
+            "steering": 0.0,
+            "brake": 0.0,
+        }
+        max_abs_control_delta = {
+            "throttle": 0.0,
+            "steering": 0.0,
+            "brake": 0.0,
+        }
         for step in range(steps):
             command = controller.command(observation, step)
             observation = client.step(command)
             applied_command = observation.state.control
+            control_delta = {
+                "throttle": applied_command.throttle - command.throttle,
+                "steering": applied_command.steering - command.steering,
+                "brake": applied_command.brake - command.brake,
+            }
+            if autopilot_guidance_enabled:
+                for key, value in control_delta.items():
+                    abs_value = abs(value)
+                    total_abs_control_delta[key] += abs_value
+                    max_abs_control_delta[key] = max(max_abs_control_delta[key], abs_value)
             pose = observation.state.pose
             step_distance_m = (
                 (pose.x - previous_pose.x) ** 2
@@ -94,7 +117,14 @@ def run_loop(
             # Recording and telemetry both use the same post-step snapshot so the
             # dataset, logs, and fleet messages stay aligned frame by frame.
             if recorder is not None:
-                recorder.record(observation, applied_command, message, alerts)
+                requested_control = command if autopilot_guidance_enabled else None
+                recorder.record(
+                    observation,
+                    applied_command,
+                    message,
+                    alerts,
+                    requested_control=requested_control,
+                )
 
             if print_payload:
                 payload: dict[str, Any] = {
@@ -104,6 +134,10 @@ def run_loop(
                     "fleet_message": message.as_dict(),
                     "collision_detected": observation.collision_detected,
                 }
+                if autopilot_guidance_enabled:
+                    payload["model_control"] = command.as_dict()
+                    payload["autopilot_control"] = applied_command.as_dict()
+                    payload["control_delta"] = control_delta
                 if observation.collision_details is not None:
                     payload["collision_details"] = observation.collision_details
                 if observation.obstacle_details is not None:
@@ -122,8 +156,9 @@ def run_loop(
         client.teardown()
 
     final_state = observation.state
-    return {
+    summary = {
         "alerts": alerts_count,
+        "autopilot_guidance_enabled": autopilot_guidance_enabled,
         "average_brake": total_brake / max(steps, 1),
         "average_speed_mps": total_speed_mps / max(steps, 1),
         "average_throttle": total_throttle / max(steps, 1),
@@ -146,3 +181,9 @@ def run_loop(
         "steps": steps,
         "vehicle_id": final_state.vehicle_id,
     }
+    if autopilot_guidance_enabled:
+        summary["average_abs_control_delta"] = {
+            key: value / max(steps, 1) for key, value in total_abs_control_delta.items()
+        }
+        summary["max_abs_control_delta"] = max_abs_control_delta
+    return summary

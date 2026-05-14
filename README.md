@@ -26,6 +26,7 @@ The software pipeline is working end-to-end:
 - model training works on CPU, CUDA, and Apple MPS
 - trained checkpoints can drive in closed-loop inference
 - CARLA inference reports sticky collision, obstacle, and blocked-vehicle diagnostics
+- CARLA autopilot can guide inference runs while model controls are logged for comparison
 - fleet telemetry can be published to a central coordinator
 
 The latest public checkpoint in this repository is:

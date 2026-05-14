@@ -14,12 +14,23 @@ class ModelController:
         self,
         checkpoint_path: str | Path,
         target_speed_mps: float = 8.0,
+        autopilot_guide: bool = False,
     ) -> None:
         self.model, self.device, self.metadata = load_driving_model(checkpoint_path)
         self.target_speed_mps = target_speed_mps
+        self.autopilot_guidance_enabled = autopilot_guide
+
+    def on_client_ready(self, client: object) -> None:
+        if not self.autopilot_guidance_enabled:
+            return
+
+        enable_autopilot = getattr(client, "enable_autopilot", None)
+        if not callable(enable_autopilot):
+            raise ValueError("Autopilot guidance is only available with the CARLA backend.")
+        enable_autopilot()
 
     def command(self, observation: DrivingObservation, step: int) -> ControlCommand:
-        if observation.collision_detected:
+        if observation.collision_detected and not self.autopilot_guidance_enabled:
             return ControlCommand(throttle=0.0, steering=0.0, brake=1.0)
 
         image_tensor = image_to_tensor(observation.front_camera_rgb).unsqueeze(0).to(self.device)

@@ -44,6 +44,7 @@ class EpisodeRecorder:
         command: ControlCommand,
         message: FleetMessage,
         alerts: list[dict[str, Any]] | None = None,
+        requested_control: ControlCommand | None = None,
     ) -> None:
         image_name = f"frame_{observation.state.frame:06d}.png"
         image_path = self.images_dir / image_name
@@ -59,6 +60,9 @@ class EpisodeRecorder:
             "image_shape": list(observation.front_camera_rgb.shape),
             "state": observation.state.as_dict(),
             "control": command.as_dict(),
+            "requested_control": (
+                requested_control.as_dict() if requested_control is not None else None
+            ),
             "lane_offset_m": observation.lane_offset_m,
             "heading_error_deg": observation.heading_error_deg,
             "collision_detected": observation.collision_detected,
