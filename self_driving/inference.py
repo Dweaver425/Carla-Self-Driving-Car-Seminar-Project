@@ -15,10 +15,14 @@ class ModelController:
         checkpoint_path: str | Path,
         target_speed_mps: float = 8.0,
         autopilot_guide: bool = False,
+        lane_guard: bool = False,
+        lane_guard_strength: float = 0.35,
     ) -> None:
         self.model, self.device, self.metadata = load_driving_model(checkpoint_path)
         self.target_speed_mps = target_speed_mps
         self.autopilot_guidance_enabled = autopilot_guide
+        self.lane_guard_enabled = lane_guard
+        self.lane_guard_strength = clamp(lane_guard_strength, 0.0, 1.0)
 
     def on_client_ready(self, client: object) -> None:
         if not self.autopilot_guidance_enabled:
@@ -61,4 +65,49 @@ class ModelController:
         if throttle > 0.2 and brake > 0.0 and observation.state.speed_mps < self.target_speed_mps:
             brake = 0.0
 
+        if self.lane_guard_enabled:
+            steering, throttle, brake = self._apply_lane_guard(
+                observation,
+                steering=steering,
+                throttle=throttle,
+                brake=brake,
+            )
+
         return ControlCommand(throttle=throttle, steering=steering, brake=brake)
+
+    def _apply_lane_guard(
+        self,
+        observation: DrivingObservation,
+        *,
+        steering: float,
+        throttle: float,
+        brake: float,
+    ) -> tuple[float, float, float]:
+        if observation.lane_offset_m is None or observation.heading_error_deg is None:
+            return steering, throttle, brake
+
+        lane_offset = float(observation.lane_offset_m)
+        heading_error = float(observation.heading_error_deg)
+        abs_lane_offset = abs(lane_offset)
+        abs_heading_error = abs(heading_error)
+        if abs_lane_offset < 0.25 and abs_heading_error < 3.0:
+            return steering, throttle, brake
+
+        lane_correction = clamp(
+            (-0.22 * lane_offset) + (-0.045 * heading_error),
+            -1.0,
+            1.0,
+        )
+        severity = max(abs_lane_offset / 1.0, abs_heading_error / 12.0)
+        blend = clamp(0.15 + (0.2 * severity), 0.0, self.lane_guard_strength)
+        guarded_steering = clamp(
+            ((1.0 - blend) * steering) + (blend * lane_correction),
+            -1.0,
+            1.0,
+        )
+
+        if abs_lane_offset > 0.9 or abs_heading_error > 14.0:
+            throttle = min(throttle, 0.25)
+            brake = max(brake, 0.08)
+
+        return guarded_steering, throttle, brake
