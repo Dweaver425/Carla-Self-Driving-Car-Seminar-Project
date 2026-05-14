@@ -23,6 +23,7 @@ class ModelController:
         self.autopilot_guidance_enabled = autopilot_guide
         self.lane_guard_enabled = lane_guard
         self.lane_guard_strength = clamp(lane_guard_strength, 0.0, 1.0)
+        self._last_steering: float | None = None
 
     def on_client_ready(self, client: object) -> None:
         if not self.autopilot_guidance_enabled:
@@ -72,6 +73,9 @@ class ModelController:
                 throttle=throttle,
                 brake=brake,
             )
+            steering = self._smooth_guarded_steering(steering, observation)
+        else:
+            self._last_steering = steering
 
         return ControlCommand(throttle=throttle, steering=steering, brake=brake)
 
@@ -111,3 +115,32 @@ class ModelController:
             brake = max(brake, 0.08)
 
         return guarded_steering, throttle, brake
+
+    def _smooth_guarded_steering(
+        self,
+        steering: float,
+        observation: DrivingObservation,
+    ) -> float:
+        if self._last_steering is None:
+            self._last_steering = steering
+            return steering
+
+        abs_heading_error = (
+            abs(float(observation.heading_error_deg))
+            if observation.heading_error_deg is not None
+            else 0.0
+        )
+        abs_lane_offset = (
+            abs(float(observation.lane_offset_m))
+            if observation.lane_offset_m is not None
+            else 0.0
+        )
+        # Let urgent corrections move faster, but damp small frame-to-frame jitter.
+        max_delta = 0.06
+        if abs_lane_offset > 0.75 or abs_heading_error > 10.0:
+            max_delta = 0.11
+
+        delta = clamp(steering - self._last_steering, -max_delta, max_delta)
+        smoothed = clamp(self._last_steering + delta, -1.0, 1.0)
+        self._last_steering = smoothed
+        return smoothed
