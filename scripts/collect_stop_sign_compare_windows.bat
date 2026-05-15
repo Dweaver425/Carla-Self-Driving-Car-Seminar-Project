@@ -35,14 +35,14 @@ echo Vehicles: %VEHICLES%
 echo Steps: %STEPS%
 echo.
 
-py -3.12 main.py collect-fleet --backend carla --host %HOST% --port %PORT% --tm-port %TM_PORT% --vehicles %VEHICLES% --spawn-indices %SPAWN_INDICES% --steps %STEPS% --output-root "%RUN_ROOT%" --checkpoint "%CURRENT_CHECKPOINT%" --target-speed 8 --quiet > "%COLLECT_LOG%" 2>&1
+call py -3.12 main.py collect-fleet --backend carla --host %HOST% --port %PORT% --tm-port %TM_PORT% --vehicles %VEHICLES% --spawn-indices %SPAWN_INDICES% --steps %STEPS% --output-root "%RUN_ROOT%" --checkpoint "%CURRENT_CHECKPOINT%" --target-speed 8 --quiet > "%COLLECT_LOG%" 2>&1
 if errorlevel 1 (
     echo Collection failed.
     echo See log: %COLLECT_LOG%
     exit /b 1
 )
 
-py -3.12 scripts\analyze_stop_sign_response.py --dataset-root "%RUN_ROOT%" --output-csv "%EVENTS_CSV%" > "%SUMMARY_JSON%"
+call py -3.12 scripts\analyze_stop_sign_response.py --dataset-root "%RUN_ROOT%" --output-csv "%EVENTS_CSV%" > "%SUMMARY_JSON%"
 if errorlevel 1 (
     echo Stop-sign analysis failed.
     echo Collection log: %COLLECT_LOG%

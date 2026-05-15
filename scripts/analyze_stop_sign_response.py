@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from statistics import mean
 from typing import Any
@@ -259,7 +259,7 @@ def write_csv(path: Path, events: list[StopSignEvent]) -> None:
         )
         writer.writeheader()
         for event in events:
-            writer.writerow(event.__dict__)
+            writer.writerow(asdict(event))
 
 
 def pct(numerator: int, denominator: int) -> float:
@@ -322,11 +322,11 @@ def main() -> None:
             teacher_brake_frames,
         ),
         "shortest_events": [
-            event.__dict__
+            asdict(event)
             for event in sorted(all_events, key=lambda item: item.frames)[:10]
         ],
         "worst_model_miss_events": [
-            event.__dict__
+            asdict(event)
             for event in sorted(
                 all_events,
                 key=lambda item: item.model_missing_brake_frames,

@@ -419,11 +419,17 @@ class FleetCarlaCollector:
     def _is_stop_sign_for_ego_lane(self, details: dict[str, Any], ego_waypoint: Any) -> bool:
         sign_road_id = details.get("road_id")
         sign_lane_id = details.get("lane_id")
+        if self._stop_sign_trigger_intersects_ego_lane(details, ego_waypoint):
+            if (
+                sign_road_id is not None
+                and int(sign_road_id) == int(ego_waypoint.road_id)
+                and sign_lane_id is not None
+            ):
+                return int(sign_lane_id) == int(ego_waypoint.lane_id)
+            return True
+
         if sign_road_id is not None and sign_lane_id is not None:
             return self._stop_sign_lane_matches_ego_lane(details, ego_waypoint)
-
-        if self._stop_sign_trigger_intersects_ego_lane(details, ego_waypoint):
-            return True
 
         return sign_road_id is None and sign_lane_id is None
 
