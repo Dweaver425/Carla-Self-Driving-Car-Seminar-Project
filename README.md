@@ -348,6 +348,19 @@ stop with:
 scripts\collect_ultra_stable_chunk_windows.bat
 ```
 
+If overnight still crashes, use the 2-car collect-only mode:
+
+```bash
+scripts\overnight_2car_collect_only_windows.bat
+```
+
+This only collects short 2-car chunks overnight and does not train inside the
+loop. In the morning, train all completed chunks with:
+
+```bash
+scripts\train_collected_chunks_windows.bat data\episodes\overnight_2car_collect_<timestamp> models\your_start.pt models\your_next.pt
+```
+
 ### Command: `train`
 
 Purpose:
@@ -546,6 +559,8 @@ For Windows overnight runs, use:
 - `scripts/ultra_stable_1hr_windows.bat`: lower-load 3-car test when the stable preset still crashes
 - `scripts/overnight_ultra_stable_iterations_windows.bat`: lower-load 3-car overnight preset
 - `scripts/collect_ultra_stable_chunk_windows.bat`: one tiny collect-only chunk for maximum crash recovery
+- `scripts/overnight_2car_collect_only_windows.bat`: most stable overnight collector, 2 cars and no training loop
+- `scripts/train_collected_chunks_windows.bat`: trains all completed chunk folders from a collect-only overnight run
 - `scripts/train_overnight_segments_windows.bat`: trains one model from all collected `segment_*` folders
 - `scripts/package_segmented_dataset.py`: rewrites many `segment_*` folders into one combined dataset TAR for easier transfer and later training
 - `scripts/train_carla_tar_index_windows.bat`: trains from a TAR-indexed CARLA dataset on CUDA

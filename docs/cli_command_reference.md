@@ -290,6 +290,19 @@ scripts\collect_ultra_stable_chunk_windows.bat
 
 That collects one tiny chunk and exits, then prints the train command to run.
 
+For the most stable overnight option, separate collection from training:
+
+```bash
+scripts\overnight_2car_collect_only_windows.bat
+```
+
+It collects 2-car chunks and does not train during the loop. Train completed
+chunks later with:
+
+```bash
+scripts\train_collected_chunks_windows.bat data\episodes\overnight_2car_collect_<timestamp> models\start.pt models\next.pt
+```
+
 ## Command: `train`
 
 ### What it does

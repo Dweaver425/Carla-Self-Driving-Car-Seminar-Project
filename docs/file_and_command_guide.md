@@ -731,6 +731,18 @@ scripts\collect_ultra_stable_chunk_windows.bat
 
 Then train the completed chunk with `scripts\train_completed_iteration_windows.bat`.
 
+For the most stable overnight workflow, collect only:
+
+```bash
+scripts\overnight_2car_collect_only_windows.bat
+```
+
+Then train in the morning:
+
+```bash
+scripts\train_collected_chunks_windows.bat data\episodes\overnight_2car_collect_<timestamp> models\start.pt models\next.pt
+```
+
 The resulting folders can be trained together:
 
 ```bash
