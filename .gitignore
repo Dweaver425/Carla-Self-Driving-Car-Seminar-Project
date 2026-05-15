@@ -9,3 +9,4 @@ __pycache__/
 !/models/
 /models/*
 !/models/carla_all_data_mps.pt
+!/models/carla_teacher_refined_cuda.pt
