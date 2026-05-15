@@ -61,6 +61,23 @@ class CarlaStopSignFilterTests(unittest.TestCase):
             )
         )
 
+    def test_accepts_same_lane_sign_after_passing_actor_center(self) -> None:
+        client = CarlaSimulatorClient.__new__(CarlaSimulatorClient)
+        ego_waypoint = types.SimpleNamespace(road_id=10, lane_id=1, lane_width=3.5)
+
+        self.assertTrue(
+            client._stop_sign_geometry_matches_ego_lane(
+                {
+                    "road_id": 10,
+                    "lane_id": 1,
+                    "forward_distance_m": -3.0,
+                    "lateral_distance_m": 4.5,
+                    "angle_deg": 88.0,
+                },
+                ego_waypoint,
+            )
+        )
+
     def test_keeps_sign_when_lane_metadata_is_missing(self) -> None:
         client = CarlaSimulatorClient.__new__(CarlaSimulatorClient)
         ego_waypoint = types.SimpleNamespace(road_id=10, lane_id=1, lane_width=3.5)

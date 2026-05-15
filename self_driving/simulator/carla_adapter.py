@@ -439,7 +439,7 @@ class CarlaSimulatorClient(SimulatorClient):
             ):
                 continue
             if (
-                -0.5 <= details["forward_distance_m"] <= 18.0
+                -8.0 <= details["forward_distance_m"] <= 18.0
                 and self._stop_sign_geometry_matches_ego_lane(details, ego_waypoint)
                 and (
                     best is None
@@ -453,12 +453,10 @@ class CarlaSimulatorClient(SimulatorClient):
         sign_road_id = details.get("road_id")
         sign_lane_id = details.get("lane_id")
         if sign_road_id is not None and sign_lane_id is not None:
-            if int(sign_road_id) != int(ego_waypoint.road_id):
-                return False
             # CARLA lane ids use opposite signs for opposite travel directions.
             # Trust lane metadata before trigger geometry so a broad trigger
             # volume cannot make us stop for a sign on the opposing lane.
-            return int(sign_lane_id) == int(ego_waypoint.lane_id)
+            return self._stop_sign_lane_matches_ego_lane(details, ego_waypoint)
 
         if self._stop_sign_trigger_intersects_ego_lane(details, ego_waypoint):
             return True
@@ -466,6 +464,16 @@ class CarlaSimulatorClient(SimulatorClient):
         # Some maps/actors do not expose lane metadata or a usable trigger
         # volume. Keep those candidates for the stricter geometry fallback below.
         return sign_road_id is None and sign_lane_id is None
+
+    def _stop_sign_lane_matches_ego_lane(self, details: dict[str, Any], ego_waypoint: Any) -> bool:
+        sign_road_id = details.get("road_id")
+        sign_lane_id = details.get("lane_id")
+        if sign_road_id is None or sign_lane_id is None:
+            return False
+        return (
+            int(sign_road_id) == int(ego_waypoint.road_id)
+            and int(sign_lane_id) == int(ego_waypoint.lane_id)
+        )
 
     def _stop_sign_geometry_matches_ego_lane(
         self,
@@ -477,6 +485,11 @@ class CarlaSimulatorClient(SimulatorClient):
             ego_waypoint,
         ):
             return True
+        if ego_waypoint is not None and self._stop_sign_lane_matches_ego_lane(
+            details,
+            ego_waypoint,
+        ):
+            return abs(details["lateral_distance_m"]) <= 6.0
 
         # Fallback for maps/actors without usable trigger-volume metadata.
         return abs(details["lateral_distance_m"]) <= 3.4 and abs(details["angle_deg"]) <= 45.0
@@ -495,7 +508,7 @@ class CarlaSimulatorClient(SimulatorClient):
         lane_width = float(getattr(ego_waypoint, "lane_width", 3.5) or 3.5)
         lane_corridor_half_width = (lane_width * 0.5) + 0.45
         return (
-            float(max_forward) >= -0.5
+            float(max_forward) >= -8.0
             and float(min_forward) <= 18.0
             and float(min_abs_lateral) <= lane_corridor_half_width
         )

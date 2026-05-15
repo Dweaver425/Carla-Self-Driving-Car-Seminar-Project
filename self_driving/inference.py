@@ -12,6 +12,9 @@ STOP_HOLD_STEPS = 25
 TRAFFIC_LIGHT_STOP_BUFFER_M = 2.0
 TRAFFIC_LIGHT_LOOKAHEAD_M = 24.0
 STOP_SIGN_LOOKAHEAD_M = 20.0
+STOP_SIGN_COMMITTED_PAST_BUFFER_M = 8.0
+STOP_SIGN_HARD_BRAKE_DISTANCE_M = 6.0
+STOP_SIGN_STOPPED_SPEED_MPS = 0.08
 
 
 class ModelController:
@@ -122,19 +125,32 @@ class ModelController:
 
         stop_id = int(stop_sign.get("id", -1))
         forward_distance = float(stop_sign.get("forward_distance_m", 999.0))
-        if stop_id in self._cleared_stop_sign_ids or not self._must_stop_for_rule(
+        if stop_id in self._cleared_stop_sign_ids:
+            return throttle, brake
+
+        already_committed = self._active_stop_sign_id == stop_id
+        must_stop = self._must_stop_for_rule(
             observation,
             forward_distance_m=forward_distance,
             max_lookahead_m=STOP_SIGN_LOOKAHEAD_M,
-        ):
+        )
+        still_finishing_committed_stop = (
+            already_committed
+            and forward_distance >= -STOP_SIGN_COMMITTED_PAST_BUFFER_M
+        )
+        if not must_stop and not still_finishing_committed_stop:
             return throttle, brake
 
         if self._active_stop_sign_id != stop_id:
             self._active_stop_sign_id = stop_id
             self._stop_hold_steps = 0
 
-        if observation.state.speed_mps > 0.25:
-            return 0.0, max(brake, self._brake_for_rule_stop(observation))
+        if observation.state.speed_mps > STOP_SIGN_STOPPED_SPEED_MPS:
+            self._stop_hold_steps = 0
+            rule_brake = self._brake_for_rule_stop(observation)
+            if forward_distance <= STOP_SIGN_HARD_BRAKE_DISTANCE_M:
+                rule_brake = 1.0
+            return 0.0, max(brake, rule_brake)
 
         self._stop_hold_steps += 1
         if self._stop_hold_steps < STOP_HOLD_STEPS:

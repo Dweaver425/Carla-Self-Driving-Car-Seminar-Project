@@ -35,7 +35,11 @@ torch_stub.nn = nn_stub
 sys.modules.setdefault("torch", torch_stub)
 sys.modules.setdefault("torch.nn", nn_stub)
 
-from self_driving.inference import ModelController, STOP_HOLD_STEPS
+from self_driving.inference import (
+    ModelController,
+    STOP_HOLD_STEPS,
+    STOP_SIGN_STOPPED_SPEED_MPS,
+)
 from self_driving.types import ControlCommand, DrivingObservation, Pose2D, VehicleState
 
 
@@ -137,6 +141,54 @@ class TrafficRuleGuardTests(unittest.TestCase):
         self.assertEqual(throttle, 0.5)
         self.assertEqual(brake, 0.0)
         self.assertIn(7, controller._cleared_stop_sign_ids)
+
+    def test_committed_stop_sign_keeps_braking_after_sign_moves_behind(self) -> None:
+        controller = make_controller()
+        controller._active_stop_sign_id = 7
+        observation = make_observation(
+            speed_mps=0.2,
+            traffic_rule_details={
+                "stop_sign": {
+                    "id": 7,
+                    "state": "Stop",
+                    "forward_distance_m": -3.0,
+                }
+            },
+        )
+
+        throttle, brake = controller._apply_traffic_rule_guard(
+            observation,
+            throttle=0.5,
+            brake=0.0,
+        )
+
+        self.assertEqual(throttle, 0.0)
+        self.assertEqual(brake, 1.0)
+        self.assertNotIn(7, controller._cleared_stop_sign_ids)
+
+    def test_stop_sign_does_not_clear_while_still_rolling(self) -> None:
+        controller = make_controller()
+        observation = make_observation(
+            speed_mps=STOP_SIGN_STOPPED_SPEED_MPS + 0.01,
+            traffic_rule_details={
+                "stop_sign": {
+                    "id": 7,
+                    "state": "Stop",
+                    "forward_distance_m": 0.5,
+                }
+            },
+        )
+
+        throttle, brake = controller._apply_traffic_rule_guard(
+            observation,
+            throttle=0.5,
+            brake=0.0,
+        )
+
+        self.assertEqual(throttle, 0.0)
+        self.assertEqual(brake, 1.0)
+        self.assertEqual(controller._stop_hold_steps, 0)
+        self.assertNotIn(7, controller._cleared_stop_sign_ids)
 
 
 if __name__ == "__main__":
