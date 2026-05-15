@@ -33,7 +33,7 @@ if "%CURRENT_CHECKPOINT%"=="" (
 if "%CURRENT_CHECKPOINT%"=="" set "CURRENT_CHECKPOINT=models\carla_teacher_refined_cuda.pt"
 
 for /f %%I in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss"') do set "STAMP=%%I"
-set "RUN_ROOT=data\episodes\%RUN_LABEL%_!STAMP!"
+set "RUN_ROOT=data\episodes\%RUN_LABEL%_%STAMP%"
 set "LOG_DIR=logs"
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 
@@ -56,10 +56,10 @@ echo Press any key here to begin.
 pause >nul
 
 for /l %%I in (1,1,%ITERATIONS%) do (
-    set "ITER_OUT=!RUN_ROOT!\iteration_%%I"
-    set "NEXT_CHECKPOINT=models\%RUN_LABEL%_!STAMP!_iter_%%I_cuda.pt"
-    set "COLLECT_LOG=%LOG_DIR%\%RUN_LABEL%_!STAMP!_iter_%%I_collect.log"
-    set "TRAIN_LOG=%LOG_DIR%\%RUN_LABEL%_!STAMP!_iter_%%I_train.log"
+    set "ITER_OUT=%RUN_ROOT%\iteration_%%I"
+    set "NEXT_CHECKPOINT=models\%RUN_LABEL%_%STAMP%_iter_%%I_cuda.pt"
+    set "COLLECT_LOG=%LOG_DIR%\%RUN_LABEL%_%STAMP%_iter_%%I_collect.log"
+    set "TRAIN_LOG=%LOG_DIR%\%RUN_LABEL%_%STAMP%_iter_%%I_train.log"
     set "DATASET_FILE=!ITER_OUT!\datasets.txt"
 
     echo.
