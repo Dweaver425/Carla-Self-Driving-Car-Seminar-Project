@@ -450,18 +450,22 @@ class CarlaSimulatorClient(SimulatorClient):
         return best
 
     def _is_stop_sign_for_ego_lane(self, details: dict[str, Any], ego_waypoint: Any) -> bool:
+        sign_road_id = details.get("road_id")
+        sign_lane_id = details.get("lane_id")
+        if sign_road_id is not None and sign_lane_id is not None:
+            if int(sign_road_id) != int(ego_waypoint.road_id):
+                return False
+            # CARLA lane ids use opposite signs for opposite travel directions.
+            # Trust lane metadata before trigger geometry so a broad trigger
+            # volume cannot make us stop for a sign on the opposing lane.
+            return int(sign_lane_id) == int(ego_waypoint.lane_id)
+
         if self._stop_sign_trigger_intersects_ego_lane(details, ego_waypoint):
             return True
 
-        sign_road_id = details.get("road_id")
-        sign_lane_id = details.get("lane_id")
-        if sign_road_id is None or sign_lane_id is None:
-            return True
-        if int(sign_road_id) != int(ego_waypoint.road_id):
-            return False
-        # CARLA lane ids use opposite signs for opposite travel directions. Requiring
-        # an exact lane id avoids stopping for signs on the other side of the road.
-        return int(sign_lane_id) == int(ego_waypoint.lane_id)
+        # Some maps/actors do not expose lane metadata or a usable trigger
+        # volume. Keep those candidates for the stricter geometry fallback below.
+        return sign_road_id is None and sign_lane_id is None
 
     def _stop_sign_geometry_matches_ego_lane(
         self,
