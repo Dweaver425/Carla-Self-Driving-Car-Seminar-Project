@@ -47,6 +47,8 @@ class FleetCarlaCollector:
         self._world: Any = None
         self._traffic_manager: Any = None
         self._original_settings: Any = None
+        self._traffic_light_actors: list[Any] = []
+        self._stop_sign_actors: list[Any] = []
         self._vehicles: list[Any] = []
         self._cameras: list[Any] = []
         self._collision_sensors: list[Any] = []
@@ -165,6 +167,9 @@ class FleetCarlaCollector:
         self._client.set_timeout(self.config.timeout_seconds)
         self._world = self._client.get_world()
         self._original_settings = self._world.get_settings()
+        actors = self._world.get_actors()
+        self._traffic_light_actors = list(actors.filter("*traffic_light*"))
+        self._stop_sign_actors = list(actors.filter("*stop*"))
 
         settings = self._world.get_settings()
         settings.synchronous_mode = self.config.synchronous_mode
@@ -277,6 +282,7 @@ class FleetCarlaCollector:
         control = vehicle.get_control()
         collision_details = self._drain_collision(index)
         lane_offset_m, heading_error_deg, lane_details = self._lane_metrics(transform)
+        traffic_rule_details = self._traffic_rule_details(vehicle, transform)
 
         state = VehicleState(
             vehicle_id=f"fleet-{index + 1:02d}",
@@ -302,6 +308,7 @@ class FleetCarlaCollector:
             lane_details=lane_details,
             collision_detected=collision_details is not None,
             collision_details=collision_details,
+            traffic_rule_details=traffic_rule_details,
         )
 
     def _lane_metrics(
@@ -336,6 +343,230 @@ class FleetCarlaCollector:
                 "is_junction": bool(waypoint.is_junction),
             },
         )
+
+    def _traffic_rule_details(self, vehicle: Any, transform: Any) -> dict[str, Any] | None:
+        traffic_light = self._traffic_light_details(vehicle, transform)
+        stop_sign = self._stop_sign_details(transform)
+        if traffic_light is None and stop_sign is None:
+            return None
+        return {
+            "traffic_light": traffic_light,
+            "stop_sign": stop_sign,
+        }
+
+    def _traffic_light_details(self, vehicle: Any, transform: Any) -> dict[str, Any] | None:
+        with suppress(Exception):
+            if vehicle.is_at_traffic_light():
+                traffic_light = vehicle.get_traffic_light()
+                if traffic_light is not None:
+                    return self._traffic_actor_details(
+                        traffic_light,
+                        transform,
+                        state=str(vehicle.get_traffic_light_state()).split(".")[-1],
+                    )
+
+        best: dict[str, Any] | None = None
+        for traffic_light in self._traffic_light_actors:
+            with suppress(Exception):
+                state = str(traffic_light.state).split(".")[-1]
+                if state not in {"Red", "Yellow"}:
+                    continue
+                details = self._traffic_actor_details(traffic_light, transform, state=state)
+                if details is None:
+                    continue
+                if (
+                    0.0 <= details["forward_distance_m"] <= 14.0
+                    and abs(details["lateral_distance_m"]) <= 5.0
+                    and abs(details["angle_deg"]) <= 60.0
+                    and (
+                        best is None
+                        or details["forward_distance_m"] < best["forward_distance_m"]
+                    )
+                ):
+                    best = details
+        return best
+
+    def _stop_sign_details(self, transform: Any) -> dict[str, Any] | None:
+        ego_waypoint = None
+        with suppress(Exception):
+            ego_waypoint = self._world.get_map().get_waypoint(
+                transform.location,
+                project_to_road=True,
+                lane_type=self._carla.LaneType.Driving,
+            )
+
+        best: dict[str, Any] | None = None
+        for stop_sign in self._stop_sign_actors:
+            details = self._traffic_actor_details(stop_sign, transform, state="Stop")
+            if details is None:
+                continue
+            if ego_waypoint is not None and not self._is_stop_sign_for_ego_lane(
+                details,
+                ego_waypoint,
+            ):
+                continue
+            if (
+                -8.0 <= details["forward_distance_m"] <= 18.0
+                and self._stop_sign_geometry_matches_ego_lane(details, ego_waypoint)
+                and (
+                    best is None
+                    or details["forward_distance_m"] < best["forward_distance_m"]
+                )
+            ):
+                best = details
+        return best
+
+    def _is_stop_sign_for_ego_lane(self, details: dict[str, Any], ego_waypoint: Any) -> bool:
+        sign_road_id = details.get("road_id")
+        sign_lane_id = details.get("lane_id")
+        if sign_road_id is not None and sign_lane_id is not None:
+            return self._stop_sign_lane_matches_ego_lane(details, ego_waypoint)
+
+        if self._stop_sign_trigger_intersects_ego_lane(details, ego_waypoint):
+            return True
+
+        return sign_road_id is None and sign_lane_id is None
+
+    def _stop_sign_lane_matches_ego_lane(self, details: dict[str, Any], ego_waypoint: Any) -> bool:
+        sign_road_id = details.get("road_id")
+        sign_lane_id = details.get("lane_id")
+        if sign_road_id is None or sign_lane_id is None:
+            return False
+        return (
+            int(sign_road_id) == int(ego_waypoint.road_id)
+            and int(sign_lane_id) == int(ego_waypoint.lane_id)
+        )
+
+    def _stop_sign_geometry_matches_ego_lane(
+        self,
+        details: dict[str, Any],
+        ego_waypoint: Any | None,
+    ) -> bool:
+        if ego_waypoint is not None and self._stop_sign_trigger_intersects_ego_lane(
+            details,
+            ego_waypoint,
+        ):
+            return True
+        if ego_waypoint is not None and self._stop_sign_lane_matches_ego_lane(
+            details,
+            ego_waypoint,
+        ):
+            return abs(details["lateral_distance_m"]) <= 6.0
+
+        return abs(details["lateral_distance_m"]) <= 3.4 and abs(details["angle_deg"]) <= 45.0
+
+    def _stop_sign_trigger_intersects_ego_lane(
+        self,
+        details: dict[str, Any],
+        ego_waypoint: Any,
+    ) -> bool:
+        min_forward = details.get("trigger_min_forward_m")
+        max_forward = details.get("trigger_max_forward_m")
+        min_abs_lateral = details.get("trigger_min_abs_lateral_m")
+        if min_forward is None or max_forward is None or min_abs_lateral is None:
+            return False
+
+        lane_width = float(getattr(ego_waypoint, "lane_width", 3.5) or 3.5)
+        lane_corridor_half_width = (lane_width * 0.5) + 0.45
+        return (
+            float(max_forward) >= -8.0
+            and float(min_forward) <= 18.0
+            and float(min_abs_lateral) <= lane_corridor_half_width
+        )
+
+    def _traffic_actor_details(
+        self,
+        actor: Any,
+        ego_transform: Any,
+        *,
+        state: str,
+    ) -> dict[str, Any] | None:
+        try:
+            actor_location = self._traffic_actor_location(actor)
+            forward = ego_transform.get_forward_vector()
+            right = ego_transform.get_right_vector()
+            delta_x = actor_location.x - ego_transform.location.x
+            delta_y = actor_location.y - ego_transform.location.y
+            distance_m = math.sqrt(delta_x**2 + delta_y**2)
+            forward_distance_m = (delta_x * forward.x) + (delta_y * forward.y)
+            lateral_distance_m = (delta_x * right.x) + (delta_y * right.y)
+            angle_deg = math.degrees(
+                math.atan2(lateral_distance_m, max(forward_distance_m, 0.001))
+            )
+            waypoint = self._world.get_map().get_waypoint(
+                actor_location,
+                project_to_road=True,
+                lane_type=self._carla.LaneType.Driving,
+            )
+            trigger_metrics = self._traffic_actor_trigger_metrics(actor, ego_transform)
+        except Exception:
+            return None
+
+        details = {
+            "id": int(actor.id),
+            "type_id": str(actor.type_id),
+            "state": state,
+            "distance_m": float(distance_m),
+            "forward_distance_m": float(forward_distance_m),
+            "lateral_distance_m": float(lateral_distance_m),
+            "angle_deg": float(angle_deg),
+        }
+        if trigger_metrics is not None:
+            details.update(trigger_metrics)
+        if waypoint is not None:
+            details.update(
+                {
+                    "road_id": int(waypoint.road_id),
+                    "section_id": int(waypoint.section_id),
+                    "lane_id": int(waypoint.lane_id),
+                    "is_junction": bool(waypoint.is_junction),
+                }
+            )
+        return details
+
+    def _traffic_actor_trigger_metrics(
+        self,
+        actor: Any,
+        ego_transform: Any,
+    ) -> dict[str, float] | None:
+        trigger_volume = getattr(actor, "trigger_volume", None)
+        if trigger_volume is None:
+            return None
+
+        actor_transform = actor.get_transform()
+        center = trigger_volume.location
+        extent = trigger_volume.extent
+        local_points = [
+            self._carla.Location(x=center.x, y=center.y, z=center.z),
+            self._carla.Location(x=center.x + extent.x, y=center.y + extent.y, z=center.z),
+            self._carla.Location(x=center.x + extent.x, y=center.y - extent.y, z=center.z),
+            self._carla.Location(x=center.x - extent.x, y=center.y + extent.y, z=center.z),
+            self._carla.Location(x=center.x - extent.x, y=center.y - extent.y, z=center.z),
+        ]
+        forward = ego_transform.get_forward_vector()
+        right = ego_transform.get_right_vector()
+        forward_distances = []
+        lateral_distances = []
+        for local_point in local_points:
+            world_point = actor_transform.transform(local_point)
+            delta_x = world_point.x - ego_transform.location.x
+            delta_y = world_point.y - ego_transform.location.y
+            forward_distances.append((delta_x * forward.x) + (delta_y * forward.y))
+            lateral_distances.append((delta_x * right.x) + (delta_y * right.y))
+
+        return {
+            "trigger_min_forward_m": float(min(forward_distances)),
+            "trigger_max_forward_m": float(max(forward_distances)),
+            "trigger_min_abs_lateral_m": float(min(abs(value) for value in lateral_distances)),
+            "trigger_max_abs_lateral_m": float(max(abs(value) for value in lateral_distances)),
+        }
+
+    def _traffic_actor_location(self, actor: Any) -> Any:
+        transform = actor.get_transform()
+        trigger_volume = getattr(actor, "trigger_volume", None)
+        if trigger_volume is None:
+            return transform.location
+        return transform.transform(trigger_volume.location)
 
     def _read_camera_image(self, index: int, target_frame: int) -> np.ndarray:
         deadline = time.monotonic() + self.config.timeout_seconds
