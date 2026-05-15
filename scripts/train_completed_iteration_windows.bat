@@ -20,6 +20,8 @@ set "NUM_WORKERS=0"
 set "LEARNING_RATE=0.00005"
 set "VAL_SPLIT=0.1"
 set "LOG_INTERVAL=100"
+set "LOG_DIR=logs"
+set "DATASET_FILE=%LOG_DIR%\%~n3_datasets.txt"
 
 if "%ITERATION_DIR%"=="" (
     echo Missing iteration folder.
@@ -40,13 +42,14 @@ if not exist "%ITERATION_DIR%\fleet_summary.json" (
     echo The collection may not be complete.
     exit /b 1
 )
+if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
+type nul > "%DATASET_FILE%"
 
-set "DATASETS="
 set "DATASET_COUNT=0"
 for /d %%D in ("%ITERATION_DIR%\vehicle_*") do (
     if exist "%%~fD\metadata.json" (
         set /a DATASET_COUNT+=1
-        set DATASETS=!DATASETS! "%%~fD"
+        >> "%DATASET_FILE%" echo %%~fD
     )
 )
 
@@ -60,8 +63,9 @@ echo Iteration dir: %ITERATION_DIR%
 echo Init checkpoint: %INIT_CHECKPOINT%
 echo Output checkpoint: %OUTPUT_CHECKPOINT%
 echo Dataset folders: %DATASET_COUNT%
+echo Dataset file: %DATASET_FILE%
 echo Num workers: %NUM_WORKERS%
 echo.
 
-py -3.12 main.py train --init-checkpoint "%INIT_CHECKPOINT%" --dataset %DATASETS% --output "%OUTPUT_CHECKPOINT%" --device %DEVICE% --epochs %EPOCHS% --batch-size %BATCH_SIZE% --num-workers %NUM_WORKERS% --learning-rate %LEARNING_RATE% --val-split %VAL_SPLIT% --log-interval %LOG_INTERVAL%
+py -3.12 main.py train --init-checkpoint "%INIT_CHECKPOINT%" --dataset-file "%DATASET_FILE%" --output "%OUTPUT_CHECKPOINT%" --device %DEVICE% --epochs %EPOCHS% --batch-size %BATCH_SIZE% --num-workers %NUM_WORKERS% --learning-rate %LEARNING_RATE% --val-split %VAL_SPLIT% --log-interval %LOG_INTERVAL%
 exit /b %ERRORLEVEL%

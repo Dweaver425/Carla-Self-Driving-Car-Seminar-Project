@@ -60,6 +60,7 @@ for /l %%I in (1,1,%ITERATIONS%) do (
     set "NEXT_CHECKPOINT=models\%RUN_LABEL%_!STAMP!_iter_%%I_cuda.pt"
     set "COLLECT_LOG=%LOG_DIR%\%RUN_LABEL%_!STAMP!_iter_%%I_collect.log"
     set "TRAIN_LOG=%LOG_DIR%\%RUN_LABEL%_!STAMP!_iter_%%I_train.log"
+    set "DATASET_FILE=!ITER_OUT!\datasets.txt"
 
     echo.
     echo [%%I/%ITERATIONS%] Collecting guided fleet data with !CURRENT_CHECKPOINT!
@@ -70,23 +71,24 @@ for /l %%I in (1,1,%ITERATIONS%) do (
         exit /b 1
     )
 
-    set "DATASETS="
+    type nul > "!DATASET_FILE!"
     for /l %%V in (1,1,%VEHICLES%) do (
         set "PAD=0%%V"
         set "VEHICLE_DIR=vehicle_!PAD:~-2!"
-        set DATASETS=!DATASETS! "!ITER_OUT!\!VEHICLE_DIR!"
+        >> "!DATASET_FILE!" echo !ITER_OUT!\!VEHICLE_DIR!
     )
 
     (
         echo @echo off
         echo cd /d "%CD%"
-        echo py -3.12 main.py train --init-checkpoint "!CURRENT_CHECKPOINT!" --dataset !DATASETS! --output "!NEXT_CHECKPOINT!" --device %DEVICE% --epochs %EPOCHS% --batch-size %BATCH_SIZE% --num-workers %NUM_WORKERS% --learning-rate %LEARNING_RATE% --val-split %VAL_SPLIT% --log-interval %LOG_INTERVAL%
+        echo py -3.12 main.py train --init-checkpoint "!CURRENT_CHECKPOINT!" --dataset-file "!DATASET_FILE!" --output "!NEXT_CHECKPOINT!" --device %DEVICE% --epochs %EPOCHS% --batch-size %BATCH_SIZE% --num-workers %NUM_WORKERS% --learning-rate %LEARNING_RATE% --val-split %VAL_SPLIT% --log-interval %LOG_INTERVAL%
     ) > "!ITER_OUT!\resume_train.bat"
 
     echo [%%I/%ITERATIONS%] Summary: !ITER_OUT!\fleet_summary.json
+    echo [%%I/%ITERATIONS%] Dataset file: !DATASET_FILE!
     echo [%%I/%ITERATIONS%] Resume command: !ITER_OUT!\resume_train.bat
     echo [%%I/%ITERATIONS%] Fine-tuning to !NEXT_CHECKPOINT!
-    py -3.12 main.py train --init-checkpoint "!CURRENT_CHECKPOINT!" --dataset !DATASETS! --output "!NEXT_CHECKPOINT!" --device %DEVICE% --epochs %EPOCHS% --batch-size %BATCH_SIZE% --num-workers %NUM_WORKERS% --learning-rate %LEARNING_RATE% --val-split %VAL_SPLIT% --log-interval %LOG_INTERVAL% > "!TRAIN_LOG!" 2>&1
+    py -3.12 main.py train --init-checkpoint "!CURRENT_CHECKPOINT!" --dataset-file "!DATASET_FILE!" --output "!NEXT_CHECKPOINT!" --device %DEVICE% --epochs %EPOCHS% --batch-size %BATCH_SIZE% --num-workers %NUM_WORKERS% --learning-rate %LEARNING_RATE% --val-split %VAL_SPLIT% --log-interval %LOG_INTERVAL% > "!TRAIN_LOG!" 2>&1
     if errorlevel 1 (
         echo Training failed during iteration %%I.
         echo See log: !TRAIN_LOG!

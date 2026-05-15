@@ -117,8 +117,17 @@ def build_parser() -> argparse.ArgumentParser:
     train_parser.add_argument(
         "--dataset",
         nargs="+",
-        required=True,
+        default=[],
         help="One or more episode directories created by the collect command.",
+    )
+    train_parser.add_argument(
+        "--dataset-file",
+        action="append",
+        default=[],
+        help=(
+            "Text file containing one episode directory per line. Useful on Windows "
+            "when many datasets would make the command line too long."
+        ),
     )
     train_parser.add_argument(
         "--output",
@@ -466,7 +475,7 @@ def handle_collect_fleet(args: argparse.Namespace) -> None:
 def handle_train(args: argparse.Namespace) -> None:
     summary = train_model(
         TrainingConfig(
-            dataset_dirs=[Path(path) for path in args.dataset],
+            dataset_dirs=resolve_training_dataset_dirs(args),
             output_path=Path(args.output),
             init_checkpoint_path=Path(args.init_checkpoint)
             if args.init_checkpoint is not None
@@ -481,6 +490,25 @@ def handle_train(args: argparse.Namespace) -> None:
         )
     )
     print(json.dumps(summary, sort_keys=True))
+
+
+def resolve_training_dataset_dirs(args: argparse.Namespace) -> list[Path]:
+    dataset_dirs = [Path(path) for path in args.dataset]
+    for dataset_file in args.dataset_file:
+        dataset_dirs.extend(read_dataset_file(Path(dataset_file)))
+    if not dataset_dirs:
+        raise ValueError("At least one dataset directory is required for training.")
+    return dataset_dirs
+
+
+def read_dataset_file(path: Path) -> list[Path]:
+    dataset_dirs: list[Path] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        entry = line.strip()
+        if not entry or entry.startswith("#"):
+            continue
+        dataset_dirs.append(Path(entry))
+    return dataset_dirs
 
 
 def handle_serve(args: argparse.Namespace) -> None:
