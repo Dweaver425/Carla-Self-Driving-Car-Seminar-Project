@@ -12,6 +12,6 @@ if "%STEPS%"=="" set "STEPS=2500"
 if "%ITERATIONS%"=="" set "ITERATIONS=3"
 if "%EPOCHS%"=="" set "EPOCHS=1"
 if "%BATCH_SIZE%"=="" set "BATCH_SIZE=64"
-if "%NUM_WORKERS%"=="" set "NUM_WORKERS=4"
+if "%NUM_WORKERS%"=="" set "NUM_WORKERS=2"
 
 call "%~dp0stable_fleet_iterations_windows.bat" %*

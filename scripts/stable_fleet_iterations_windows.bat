@@ -60,16 +60,8 @@ for /l %%I in (1,1,%ITERATIONS%) do (
     set "NEXT_CHECKPOINT=models\%RUN_LABEL%_%STAMP%_iter_%%I_cuda.pt"
     set "COLLECT_LOG=%LOG_DIR%\%RUN_LABEL%_%STAMP%_iter_%%I_collect.log"
     set "TRAIN_LOG=%LOG_DIR%\%RUN_LABEL%_%STAMP%_iter_%%I_train.log"
-    set "DATASET_FILE=!ITER_OUT!\datasets.txt"
-
-    echo.
-    echo [%%I/%ITERATIONS%] Collecting guided fleet data with !CURRENT_CHECKPOINT!
-    py -3.12 main.py collect-fleet --backend carla --host %HOST% --port %PORT% --tm-port %TM_PORT% --vehicles %VEHICLES% --spawn-indices %SPAWN_INDICES% --steps %STEPS% --output-root "!ITER_OUT!" --checkpoint "!CURRENT_CHECKPOINT!" --target-speed 8 --lane-guard --traffic-rule-guard --quiet > "!COLLECT_LOG!" 2>&1
-    if errorlevel 1 (
-        echo Collection failed during iteration %%I.
-        echo See log: !COLLECT_LOG!
-        exit /b 1
-    )
+    set "DATASET_FILE=%LOG_DIR%\%RUN_LABEL%_%STAMP%_iter_%%I_datasets.txt"
+    set "RESUME_TRAIN=%LOG_DIR%\%RUN_LABEL%_%STAMP%_iter_%%I_resume_train.bat"
 
     type nul > "!DATASET_FILE!"
     for /l %%V in (1,1,%VEHICLES%) do (
@@ -82,11 +74,25 @@ for /l %%I in (1,1,%ITERATIONS%) do (
         echo @echo off
         echo cd /d "%CD%"
         echo py -3.12 main.py train --init-checkpoint "!CURRENT_CHECKPOINT!" --dataset-file "!DATASET_FILE!" --output "!NEXT_CHECKPOINT!" --device %DEVICE% --epochs %EPOCHS% --batch-size %BATCH_SIZE% --num-workers %NUM_WORKERS% --learning-rate %LEARNING_RATE% --val-split %VAL_SPLIT% --log-interval %LOG_INTERVAL%
-    ) > "!ITER_OUT!\resume_train.bat"
+    ) > "!RESUME_TRAIN!"
+
+    echo.
+    echo [%%I/%ITERATIONS%] Dataset file: !DATASET_FILE!
+    echo [%%I/%ITERATIONS%] Resume command: !RESUME_TRAIN!
+    echo [%%I/%ITERATIONS%] Collecting guided fleet data with !CURRENT_CHECKPOINT!
+    py -3.12 main.py collect-fleet --backend carla --host %HOST% --port %PORT% --tm-port %TM_PORT% --vehicles %VEHICLES% --spawn-indices %SPAWN_INDICES% --steps %STEPS% --output-root "!ITER_OUT!" --checkpoint "!CURRENT_CHECKPOINT!" --target-speed 8 --lane-guard --traffic-rule-guard --quiet > "!COLLECT_LOG!" 2>&1
+    if errorlevel 1 (
+        echo Collection failed during iteration %%I.
+        echo See log: !COLLECT_LOG!
+        echo Training can be resumed, if the collection completed, with !RESUME_TRAIN!
+        exit /b 1
+    )
 
     echo [%%I/%ITERATIONS%] Summary: !ITER_OUT!\fleet_summary.json
-    echo [%%I/%ITERATIONS%] Dataset file: !DATASET_FILE!
-    echo [%%I/%ITERATIONS%] Resume command: !ITER_OUT!\resume_train.bat
+    if exist "!ITER_OUT!" (
+        copy /y "!DATASET_FILE!" "!ITER_OUT!\datasets.txt" >nul 2>&1
+        copy /y "!RESUME_TRAIN!" "!ITER_OUT!\resume_train.bat" >nul 2>&1
+    )
     echo [%%I/%ITERATIONS%] Fine-tuning to !NEXT_CHECKPOINT!
     py -3.12 main.py train --init-checkpoint "!CURRENT_CHECKPOINT!" --dataset-file "!DATASET_FILE!" --output "!NEXT_CHECKPOINT!" --device %DEVICE% --epochs %EPOCHS% --batch-size %BATCH_SIZE% --num-workers %NUM_WORKERS% --learning-rate %LEARNING_RATE% --val-split %VAL_SPLIT% --log-interval %LOG_INTERVAL% > "!TRAIN_LOG!" 2>&1
     if errorlevel 1 (
