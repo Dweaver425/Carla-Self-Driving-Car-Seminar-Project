@@ -37,20 +37,24 @@ if not exist "%ITERATION_DIR%\fleet_summary.json" (
 )
 
 set "DATASETS="
-for /l %%V in (1,1,10) do (
-    set "PAD=0%%V"
-    set "VEHICLE_DIR=vehicle_!PAD:~-2!"
-    if not exist "%ITERATION_DIR%\!VEHICLE_DIR!\metadata.json" (
-        echo Missing metadata for %ITERATION_DIR%\!VEHICLE_DIR!.
-        exit /b 1
+set "DATASET_COUNT=0"
+for /d %%D in ("%ITERATION_DIR%\vehicle_*") do (
+    if exist "%%~fD\metadata.json" (
+        set /a DATASET_COUNT+=1
+        set DATASETS=!DATASETS! "%%~fD"
     )
-    set DATASETS=!DATASETS! "%ITERATION_DIR%\!VEHICLE_DIR!"
+)
+
+if "%DATASET_COUNT%"=="0" (
+    echo No completed vehicle_* folders were found under %ITERATION_DIR%.
+    exit /b 1
 )
 
 echo Training completed iteration:
 echo Iteration dir: %ITERATION_DIR%
 echo Init checkpoint: %INIT_CHECKPOINT%
 echo Output checkpoint: %OUTPUT_CHECKPOINT%
+echo Dataset folders: %DATASET_COUNT%
 echo Num workers: %NUM_WORKERS%
 echo.
 

@@ -259,6 +259,21 @@ scripts\continue_quick_10car_iterations_windows.bat
 The continuation script auto-starts from the newest non-epoch quick checkpoint
 unless a checkpoint path is passed as its first argument.
 
+For a cooler stability test before an unattended run:
+
+```bash
+scripts\stability_test_1hr_windows.bat
+```
+
+If the 1-hour preset is stable and temperatures stay reasonable, use:
+
+```bash
+scripts\overnight_stable_iterations_windows.bat
+```
+
+Both stable presets use the shared `stable_fleet_iterations_windows.bat` runner,
+6 vehicles, `NUM_WORKERS=0`, and per-iteration logs under `logs/`.
+
 ## Command: `train`
 
 ### What it does

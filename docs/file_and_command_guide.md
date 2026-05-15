@@ -699,6 +699,22 @@ scripts\continue_quick_10car_iterations_windows.bat
 It finds the latest quick checkpoint, runs another 10-car guided collection,
 trains the next checkpoint, and repeats for the configured number of iterations.
 
+For a lower-heat test before leaving the machine alone:
+
+```bash
+scripts\stability_test_1hr_windows.bat
+```
+
+For the overnight version:
+
+```bash
+scripts\overnight_stable_iterations_windows.bat
+```
+
+These use 6 vehicles and `NUM_WORKERS=0` for stability. They write collection
+and training logs under `logs/`, and each completed iteration remains usable
+even if the next one crashes.
+
 The resulting folders can be trained together:
 
 ```bash

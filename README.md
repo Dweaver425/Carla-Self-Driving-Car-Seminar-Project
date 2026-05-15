@@ -316,6 +316,23 @@ It automatically starts from the newest non-epoch
 each new checkpoint into the next 10-car collection/training round. You can also
 pass an explicit starting checkpoint as the first argument.
 
+For a lower-heat stability check before leaving the PC alone, run:
+
+```bash
+scripts\stability_test_1hr_windows.bat
+```
+
+It uses 6 vehicles, 6 short iterations, `NUM_WORKERS=0`, and logs each collection
+and training stage under `logs/`. If that survives and temperatures look good,
+use the overnight preset:
+
+```bash
+scripts\overnight_stable_iterations_windows.bat
+```
+
+The overnight preset keeps the same conservative 6-vehicle load and runs 24
+short iterations so a crash only loses the current chunk.
+
 ### Command: `train`
 
 Purpose:
@@ -508,6 +525,9 @@ For Windows overnight runs, use:
 - `scripts/iterate_fleet_model_windows.bat`: repeats guided fleet collection and fine-tuning for several model-improvement rounds
 - `scripts/quick_iterate_10car_5min_windows.bat`: runs 10 guided fleet cars for 5 simulated minutes and trains one quick checkpoint
 - `scripts/continue_quick_10car_iterations_windows.bat`: chains several 10-car quick rounds, using each new checkpoint as the next starting model
+- `scripts/stability_test_1hr_windows.bat`: conservative 6-car test before unattended overnight runs
+- `scripts/overnight_stable_iterations_windows.bat`: conservative 6-car overnight iteration preset
+- `scripts/stable_fleet_iterations_windows.bat`: shared configurable runner used by the stable presets
 - `scripts/train_overnight_segments_windows.bat`: trains one model from all collected `segment_*` folders
 - `scripts/package_segmented_dataset.py`: rewrites many `segment_*` folders into one combined dataset TAR for easier transfer and later training
 - `scripts/train_carla_tar_index_windows.bat`: trains from a TAR-indexed CARLA dataset on CUDA
