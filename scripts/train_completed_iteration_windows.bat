@@ -13,14 +13,14 @@ rem   scripts\train_completed_iteration_windows.bat data\episodes\...\iteration_
 set "ITERATION_DIR=%~1"
 set "INIT_CHECKPOINT=%~2"
 set "OUTPUT_CHECKPOINT=%~3"
-set "DEVICE=cuda"
-set "EPOCHS=2"
-set "BATCH_SIZE=128"
+if "%DEVICE%"=="" set "DEVICE=cuda"
+if "%EPOCHS%"=="" set "EPOCHS=2"
+if "%BATCH_SIZE%"=="" set "BATCH_SIZE=128"
 if "%NUM_WORKERS%"=="" set "NUM_WORKERS=2"
-set "LEARNING_RATE=0.00005"
-set "VAL_SPLIT=0.1"
-set "LOG_INTERVAL=100"
-set "LOG_DIR=logs"
+if "%LEARNING_RATE%"=="" set "LEARNING_RATE=0.00005"
+if "%VAL_SPLIT%"=="" set "VAL_SPLIT=0.1"
+if "%LOG_INTERVAL%"=="" set "LOG_INTERVAL=100"
+if "%LOG_DIR%"=="" set "LOG_DIR=logs"
 set "DATASET_FILE=%LOG_DIR%\%~n3_datasets.txt"
 
 if "%ITERATION_DIR%"=="" (
@@ -64,6 +64,7 @@ echo Init checkpoint: %INIT_CHECKPOINT%
 echo Output checkpoint: %OUTPUT_CHECKPOINT%
 echo Dataset folders: %DATASET_COUNT%
 echo Dataset file: %DATASET_FILE%
+echo Batch size: %BATCH_SIZE%
 echo Num workers: %NUM_WORKERS%
 echo.
 
