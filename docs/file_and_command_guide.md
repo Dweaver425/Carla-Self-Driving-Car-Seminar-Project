@@ -690,6 +690,15 @@ This runs 10 guided CARLA autopilot cars for 5 simulated minutes. After
 collection, inspect `fleet_summary.json` under the generated output folder to
 compare the current model's predicted controls against CARLA autopilot.
 
+To keep iterating without manually selecting the next checkpoint:
+
+```bash
+scripts\continue_quick_10car_iterations_windows.bat
+```
+
+It finds the latest quick checkpoint, runs another 10-car guided collection,
+trains the next checkpoint, and repeats for the configured number of iterations.
+
 The resulting folders can be trained together:
 
 ```bash

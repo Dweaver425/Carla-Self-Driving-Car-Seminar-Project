@@ -13,7 +13,11 @@ set "VEHICLES=3"
 set "SPAWN_INDICES=1 8 15"
 set "ITERATIONS=3"
 set "STEPS_PER_ITERATION=120000"
-set "CURRENT_CHECKPOINT=models\carla_teacher_refined_cuda.pt"
+set "CURRENT_CHECKPOINT=%~1"
+if "%CURRENT_CHECKPOINT%"=="" (
+    for /f "delims=" %%C in ('powershell -NoProfile -Command "$m=Get-ChildItem -Path models -Filter 'carla_quick*_cuda.pt' | Where-Object { $_.Name -notlike '*_epoch_*' } | Sort-Object LastWriteTime -Descending | Select-Object -First 1; if ($m) { $m.FullName }"') do set "CURRENT_CHECKPOINT=%%C"
+)
+if "%CURRENT_CHECKPOINT%"=="" set "CURRENT_CHECKPOINT=models\carla_teacher_refined_cuda.pt"
 set "DEVICE=cuda"
 set "EPOCHS=3"
 set "BATCH_SIZE=128"

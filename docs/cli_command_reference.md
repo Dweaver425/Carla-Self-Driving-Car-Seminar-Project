@@ -250,6 +250,15 @@ That script records 10 CARLA autopilot teacher cars for `6000` ticks, which is
 `fleet_summary.json` with average and maximum control deltas between the current
 model and CARLA autopilot.
 
+To chain several quick rounds:
+
+```bash
+scripts\continue_quick_10car_iterations_windows.bat
+```
+
+The continuation script auto-starts from the newest non-epoch quick checkpoint
+unless a checkpoint path is passed as its first argument.
+
 ## Command: `train`
 
 ### What it does

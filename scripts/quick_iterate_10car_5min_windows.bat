@@ -13,7 +13,11 @@ set "TM_PORT=8000"
 set "VEHICLES=10"
 set "STEPS=6000"
 set "SPAWN_INDICES=1 8 15 22 29 36 43 50 57 64"
-set "CURRENT_CHECKPOINT=models\carla_teacher_refined_cuda.pt"
+set "CURRENT_CHECKPOINT=%~1"
+if "%CURRENT_CHECKPOINT%"=="" (
+    for /f "delims=" %%C in ('powershell -NoProfile -Command "$m=Get-ChildItem -Path models -Filter 'carla_quick*_cuda.pt' | Where-Object { $_.Name -notlike '*_epoch_*' } | Sort-Object LastWriteTime -Descending | Select-Object -First 1; if ($m) { $m.FullName }"') do set "CURRENT_CHECKPOINT=%%C"
+)
+if "%CURRENT_CHECKPOINT%"=="" set "CURRENT_CHECKPOINT=models\carla_teacher_refined_cuda.pt"
 set "DEVICE=cuda"
 set "EPOCHS=2"
 set "BATCH_SIZE=128"

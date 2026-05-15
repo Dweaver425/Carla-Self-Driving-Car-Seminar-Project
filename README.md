@@ -305,6 +305,17 @@ runs the current checkpoint in the background on every car, writes a
 `fleet_summary.json` comparison report, and trains a short fine-tuned checkpoint
 from the 10 collected episode folders.
 
+To keep going for several quick rounds, use:
+
+```bash
+scripts\continue_quick_10car_iterations_windows.bat
+```
+
+It automatically starts from the newest non-epoch
+`models/carla_quick_10car_5min_*_cuda.pt` checkpoint if one exists, then chains
+each new checkpoint into the next 10-car collection/training round. You can also
+pass an explicit starting checkpoint as the first argument.
+
 ### Command: `train`
 
 Purpose:
@@ -496,6 +507,7 @@ For Windows overnight runs, use:
 - `scripts/collect_fleet_overnight_windows.bat`: records 2-3 CARLA autopilot teacher vehicles at the same time
 - `scripts/iterate_fleet_model_windows.bat`: repeats guided fleet collection and fine-tuning for several model-improvement rounds
 - `scripts/quick_iterate_10car_5min_windows.bat`: runs 10 guided fleet cars for 5 simulated minutes and trains one quick checkpoint
+- `scripts/continue_quick_10car_iterations_windows.bat`: chains several 10-car quick rounds, using each new checkpoint as the next starting model
 - `scripts/train_overnight_segments_windows.bat`: trains one model from all collected `segment_*` folders
 - `scripts/package_segmented_dataset.py`: rewrites many `segment_*` folders into one combined dataset TAR for easier transfer and later training
 - `scripts/train_carla_tar_index_windows.bat`: trains from a TAR-indexed CARLA dataset on CUDA
