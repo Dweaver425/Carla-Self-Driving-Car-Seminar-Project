@@ -1,5 +1,5 @@
 @echo off
-setlocal enabledelayedexpansion
+setlocal EnableExtensions EnableDelayedExpansion
 
 rem Trains from a completed collect-fleet iteration folder.
 rem Usage:

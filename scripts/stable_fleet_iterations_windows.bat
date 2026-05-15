@@ -1,5 +1,5 @@
 @echo off
-setlocal enabledelayedexpansion
+setlocal EnableExtensions EnableDelayedExpansion
 
 rem Stable guided fleet iteration runner.
 rem Wrappers set the duration/load. You may also run this directly.
@@ -23,7 +23,7 @@ if "%LOG_INTERVAL%"=="" set "LOG_INTERVAL=100"
 
 set "CURRENT_CHECKPOINT=%~1"
 if "%CURRENT_CHECKPOINT%"=="" (
-    for /f "delims=" %%C in ('powershell -NoProfile -Command "$m=Get-ChildItem -Path models -Filter 'carla_quick*_cuda.pt' | Where-Object { $_.Name -notlike '*_epoch_*' } | Sort-Object LastWriteTime -Descending | Select-Object -First 1; if ($m) { $m.FullName }"') do set "CURRENT_CHECKPOINT=%%C"
+    for /f "delims=" %%C in ('powershell -NoProfile -Command "$m=Get-ChildItem -Path models -File | Where-Object { ($_.Name -like 'carla_quick*_cuda.pt' -or $_.Name -like 'stable_*_cuda.pt' -or $_.Name -like 'ultra_*_cuda.pt') -and $_.Name -notlike '*_epoch_*' } | Sort-Object LastWriteTime -Descending | Select-Object -First 1; if ($m) { $m.FullName }"') do set "CURRENT_CHECKPOINT=%%C"
 )
 if "%CURRENT_CHECKPOINT%"=="" set "CURRENT_CHECKPOINT=models\carla_teacher_refined_cuda.pt"
 
@@ -72,7 +72,14 @@ for /l %%I in (1,1,%ITERATIONS%) do (
         set DATASETS=!DATASETS! "!ITER_OUT!\!VEHICLE_DIR!"
     )
 
+    (
+        echo @echo off
+        echo cd /d "%CD%"
+        echo py -3.12 main.py train --init-checkpoint "!CURRENT_CHECKPOINT!" --dataset !DATASETS! --output "!NEXT_CHECKPOINT!" --device %DEVICE% --epochs %EPOCHS% --batch-size %BATCH_SIZE% --num-workers %NUM_WORKERS% --learning-rate %LEARNING_RATE% --val-split %VAL_SPLIT% --log-interval %LOG_INTERVAL%
+    ) > "!ITER_OUT!\resume_train.bat"
+
     echo [%%I/%ITERATIONS%] Summary: !ITER_OUT!\fleet_summary.json
+    echo [%%I/%ITERATIONS%] Resume command: !ITER_OUT!\resume_train.bat
     echo [%%I/%ITERATIONS%] Fine-tuning to !NEXT_CHECKPOINT!
     py -3.12 main.py train --init-checkpoint "!CURRENT_CHECKPOINT!" --dataset !DATASETS! --output "!NEXT_CHECKPOINT!" --device %DEVICE% --epochs %EPOCHS% --batch-size %BATCH_SIZE% --num-workers %NUM_WORKERS% --learning-rate %LEARNING_RATE% --val-split %VAL_SPLIT% --log-interval %LOG_INTERVAL% > "!TRAIN_LOG!" 2>&1
     if errorlevel 1 (

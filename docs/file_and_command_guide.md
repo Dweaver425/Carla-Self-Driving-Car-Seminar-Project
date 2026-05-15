@@ -715,6 +715,22 @@ These use 6 vehicles and `NUM_WORKERS=0` for stability. They write collection
 and training logs under `logs/`, and each completed iteration remains usable
 even if the next one crashes.
 
+If the 6-vehicle preset is still unstable, use the ultra-stable scripts:
+
+```bash
+scripts\ultra_stable_1hr_windows.bat
+scripts\overnight_ultra_stable_iterations_windows.bat
+```
+
+They cut the load down to 3 vehicles and 3000-step chunks. If you want the most
+recoverable workflow, use:
+
+```bash
+scripts\collect_ultra_stable_chunk_windows.bat
+```
+
+Then train the completed chunk with `scripts\train_completed_iteration_windows.bat`.
+
 The resulting folders can be trained together:
 
 ```bash

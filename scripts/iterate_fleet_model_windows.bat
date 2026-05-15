@@ -1,5 +1,5 @@
 @echo off
-setlocal enabledelayedexpansion
+setlocal EnableExtensions EnableDelayedExpansion
 
 rem Iteratively improves the current model:
 rem 1. collect 3 CARLA autopilot cars while the current model predicts in the background
@@ -15,7 +15,7 @@ set "ITERATIONS=3"
 set "STEPS_PER_ITERATION=120000"
 set "CURRENT_CHECKPOINT=%~1"
 if "%CURRENT_CHECKPOINT%"=="" (
-    for /f "delims=" %%C in ('powershell -NoProfile -Command "$m=Get-ChildItem -Path models -Filter 'carla_quick*_cuda.pt' | Where-Object { $_.Name -notlike '*_epoch_*' } | Sort-Object LastWriteTime -Descending | Select-Object -First 1; if ($m) { $m.FullName }"') do set "CURRENT_CHECKPOINT=%%C"
+    for /f "delims=" %%C in ('powershell -NoProfile -Command "$m=Get-ChildItem -Path models -File | Where-Object { ($_.Name -like 'carla_quick*_cuda.pt' -or $_.Name -like 'stable_*_cuda.pt' -or $_.Name -like 'ultra_*_cuda.pt') -and $_.Name -notlike '*_epoch_*' } | Sort-Object LastWriteTime -Descending | Select-Object -First 1; if ($m) { $m.FullName }"') do set "CURRENT_CHECKPOINT=%%C"
 )
 if "%CURRENT_CHECKPOINT%"=="" set "CURRENT_CHECKPOINT=models\carla_teacher_refined_cuda.pt"
 set "DEVICE=cuda"

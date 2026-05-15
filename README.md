@@ -333,6 +333,21 @@ scripts\overnight_stable_iterations_windows.bat
 The overnight preset keeps the same conservative 6-vehicle load and runs 24
 short iterations so a crash only loses the current chunk.
 
+If the 6-vehicle preset still crashes or runs hot, use the ultra-stable presets:
+
+```bash
+scripts\ultra_stable_1hr_windows.bat
+scripts\overnight_ultra_stable_iterations_windows.bat
+```
+
+They use 3 vehicles, shorter 3000-step chunks, 1 training epoch, batch size 64,
+and `NUM_WORKERS=0`. For maximum recovery safety, collect one tiny chunk and
+stop with:
+
+```bash
+scripts\collect_ultra_stable_chunk_windows.bat
+```
+
 ### Command: `train`
 
 Purpose:
@@ -528,6 +543,9 @@ For Windows overnight runs, use:
 - `scripts/stability_test_1hr_windows.bat`: conservative 6-car test before unattended overnight runs
 - `scripts/overnight_stable_iterations_windows.bat`: conservative 6-car overnight iteration preset
 - `scripts/stable_fleet_iterations_windows.bat`: shared configurable runner used by the stable presets
+- `scripts/ultra_stable_1hr_windows.bat`: lower-load 3-car test when the stable preset still crashes
+- `scripts/overnight_ultra_stable_iterations_windows.bat`: lower-load 3-car overnight preset
+- `scripts/collect_ultra_stable_chunk_windows.bat`: one tiny collect-only chunk for maximum crash recovery
 - `scripts/train_overnight_segments_windows.bat`: trains one model from all collected `segment_*` folders
 - `scripts/package_segmented_dataset.py`: rewrites many `segment_*` folders into one combined dataset TAR for easier transfer and later training
 - `scripts/train_carla_tar_index_windows.bat`: trains from a TAR-indexed CARLA dataset on CUDA

@@ -274,6 +274,22 @@ scripts\overnight_stable_iterations_windows.bat
 Both stable presets use the shared `stable_fleet_iterations_windows.bat` runner,
 6 vehicles, `NUM_WORKERS=0`, and per-iteration logs under `logs/`.
 
+If that still crashes or runs too hot, use:
+
+```bash
+scripts\ultra_stable_1hr_windows.bat
+scripts\overnight_ultra_stable_iterations_windows.bat
+```
+
+The ultra presets use 3 vehicles, 3000-step chunks, 1 epoch, batch size 64, and
+`NUM_WORKERS=0`. The safest possible mode is:
+
+```bash
+scripts\collect_ultra_stable_chunk_windows.bat
+```
+
+That collects one tiny chunk and exits, then prints the train command to run.
+
 ## Command: `train`
 
 ### What it does
