@@ -661,9 +661,14 @@ For larger teacher datasets, use `collect-fleet` instead of opening several
 synchronized world and writes one episode folder per vehicle:
 
 ```bash
-py -3.12 main.py collect-fleet --backend carla --vehicles 3 --spawn-indices 1 8 15 --steps 360000 --output-root data/episodes/carla_fleet_overnight_01 --quiet
+py -3.12 main.py collect-fleet --backend carla --vehicles 3 --spawn-indices 1 8 15 --steps 360000 --output-root data/episodes/carla_fleet_overnight_01 --checkpoint models/carla_teacher_refined_cuda.pt --target-speed 8 --lane-guard --traffic-rule-guard --quiet
 scripts\collect_fleet_overnight_windows.bat
 ```
+
+With `--checkpoint`, CARLA autopilot still drives each recorded car. The current
+model predicts in the background, and those predictions are written as
+`requested_control` so the run captures where the model disagrees with the
+teacher.
 
 The resulting folders can be trained together:
 

@@ -83,6 +83,30 @@ def build_parser() -> argparse.ArgumentParser:
         help="Root folder where vehicle_01, vehicle_02, etc. episodes are saved.",
     )
     fleet_collect_parser.add_argument(
+        "--checkpoint",
+        default=None,
+        help=(
+            "Optional current-model checkpoint. If set, CARLA autopilot still "
+            "drives, but the model's predicted controls are recorded for comparison."
+        ),
+    )
+    fleet_collect_parser.add_argument(
+        "--target-speed",
+        type=float,
+        default=8.0,
+        help="Target speed passed to the model when --checkpoint is used.",
+    )
+    fleet_collect_parser.add_argument(
+        "--lane-guard",
+        action="store_true",
+        help="Apply lane guard to recorded model predictions when --checkpoint is used.",
+    )
+    fleet_collect_parser.add_argument(
+        "--traffic-rule-guard",
+        action="store_true",
+        help="Apply traffic-rule guard to recorded model predictions when --checkpoint is used.",
+    )
+    fleet_collect_parser.add_argument(
         "--quiet",
         action="store_true",
         help="Suppress progress logs except for the final summary.",
@@ -431,6 +455,10 @@ def handle_collect_fleet(args: argparse.Namespace) -> None:
         vehicle_count=args.vehicles,
         spawn_indices=args.spawn_indices,
         quiet=args.quiet,
+        checkpoint_path=args.checkpoint,
+        target_speed_mps=args.target_speed,
+        lane_guard=args.lane_guard,
+        traffic_rule_guard=args.traffic_rule_guard,
     )
     print(json.dumps(summary, sort_keys=True))
 

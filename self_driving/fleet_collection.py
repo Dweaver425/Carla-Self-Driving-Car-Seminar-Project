@@ -28,12 +28,20 @@ class FleetCarlaCollector:
         vehicle_count: int,
         spawn_indices: list[int],
         quiet: bool,
+        checkpoint_path: str | Path | None = None,
+        target_speed_mps: float = 8.0,
+        lane_guard: bool = False,
+        traffic_rule_guard: bool = False,
     ) -> None:
         self.config = config
         self.output_root = Path(output_root)
         self.vehicle_count = vehicle_count
         self.spawn_indices = spawn_indices
         self.quiet = quiet
+        self.checkpoint_path = checkpoint_path
+        self.target_speed_mps = target_speed_mps
+        self.lane_guard = lane_guard
+        self.traffic_rule_guard = traffic_rule_guard
         self._carla: Any = None
         self._client: Any = None
         self._world: Any = None
@@ -45,6 +53,7 @@ class FleetCarlaCollector:
         self._image_queues: list[queue.Queue[Any]] = []
         self._collision_queues: list[queue.Queue[dict[str, Any]]] = []
         self._recorders: list[EpisodeRecorder] = []
+        self._model_controllers: list[Any] = []
 
     def collect(self) -> dict[str, Any]:
         self._setup()
@@ -61,11 +70,18 @@ class FleetCarlaCollector:
                     if observation.collision_detected:
                         collision_counts[index] += 1
                     message = FleetMessage.from_observation(observation)
+                    requested_control = None
+                    if self._model_controllers:
+                        requested_control = self._model_controllers[index].command(
+                            observation,
+                            step,
+                        )
                     self._recorders[index].record(
                         observation,
                         observation.state.control,
                         message,
                         alerts=[],
+                        requested_control=requested_control,
                     )
                 frames_recorded += 1
                 if not self.quiet and (step == 0 or (step + 1) % 100 == 0):
@@ -90,6 +106,8 @@ class FleetCarlaCollector:
             "total_frames": frames_recorded * len(collision_counts),
             "vehicle_count": len(collision_counts),
             "vehicle_collision_counts": collision_counts,
+            "model_checkpoint": str(self.checkpoint_path) if self.checkpoint_path else None,
+            "requested_control_recorded": bool(self._model_controllers),
         }
 
     def _setup(self) -> None:
@@ -129,6 +147,11 @@ class FleetCarlaCollector:
         camera_bp.set_attribute("image_size_y", str(self.config.camera_height))
         camera_bp.set_attribute("fov", str(self.config.camera_fov))
         collision_bp = blueprint_library.find("sensor.other.collision")
+        controller_cls = None
+        if self.checkpoint_path is not None:
+            from self_driving.inference import ModelController
+
+            controller_cls = ModelController
 
         spawn_points = self._world.get_map().get_spawn_points()
         if not spawn_points:
@@ -175,10 +198,22 @@ class FleetCarlaCollector:
                 ego_vehicle_id=f"fleet-{index + 1:02d}",
                 spawn_index=spawn_index,
             )
+            controller_name = "carla_fleet_autopilot"
+            if controller_cls is not None:
+                controller_name = "carla_fleet_autopilot_guided_model"
+                self._model_controllers.append(
+                    controller_cls(
+                        checkpoint_path=self.checkpoint_path,
+                        target_speed_mps=self.target_speed_mps,
+                        autopilot_guide=True,
+                        lane_guard=self.lane_guard,
+                        traffic_rule_guard=self.traffic_rule_guard,
+                    )
+                )
             recorder = EpisodeRecorder(
                 output_dir=self.output_root / f"vehicle_{index + 1:02d}",
                 config=config,
-                controller_name="carla_fleet_autopilot",
+                controller_name=controller_name,
             )
             self._vehicles.append(vehicle)
             self._cameras.append(camera)
@@ -343,6 +378,10 @@ def collect_carla_fleet(
     vehicle_count: int,
     spawn_indices: list[int],
     quiet: bool,
+    checkpoint_path: str | Path | None = None,
+    target_speed_mps: float = 8.0,
+    lane_guard: bool = False,
+    traffic_rule_guard: bool = False,
 ) -> dict[str, Any]:
     if vehicle_count < 1:
         raise ValueError("vehicle_count must be at least 1.")
@@ -361,5 +400,9 @@ def collect_carla_fleet(
         vehicle_count=vehicle_count,
         spawn_indices=spawn_indices,
         quiet=quiet,
+        checkpoint_path=checkpoint_path,
+        target_speed_mps=target_speed_mps,
+        lane_guard=lane_guard,
+        traffic_rule_guard=traffic_rule_guard,
     )
     return collector.collect()

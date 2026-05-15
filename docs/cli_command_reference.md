@@ -200,6 +200,10 @@ py -3.12 main.py collect-fleet --backend carla [options]
 | `--spawn-indices` | `one or more int values` | `1 8 15` | Spawn points to try for the recorded vehicles. |
 | `--output-root` | `string/path` | `data/episodes/carla_fleet_overnight` | Root folder containing `vehicle_01`, `vehicle_02`, etc. |
 | `--steps` | `int` | `120` | Number of CARLA ticks to record. |
+| `--checkpoint` | `string/path` | none | Optional current model to run in the background while CARLA autopilot drives. |
+| `--target-speed` | `float` | `8.0` | Target speed passed to the background model. |
+| `--lane-guard` | flag | `False` | Apply lane guard to background model predictions. |
+| `--traffic-rule-guard` | flag | `False` | Apply traffic-rule guard to background model predictions. |
 | `--quiet` | flag | `False` | Suppress progress logs except final summary. |
 
 ### Output to check
@@ -213,13 +217,18 @@ py -3.12 main.py collect-fleet --backend carla [options]
 
 ```bash
 py -3.12 main.py collect-fleet --backend carla --vehicles 2 --spawn-indices 1 8 --steps 36000 --output-root data/episodes/carla_fleet_test_01 --quiet
-py -3.12 main.py collect-fleet --backend carla --vehicles 3 --spawn-indices 1 8 15 --steps 360000 --output-root data/episodes/carla_fleet_overnight_01 --quiet
+py -3.12 main.py collect-fleet --backend carla --vehicles 3 --spawn-indices 1 8 15 --steps 360000 --output-root data/episodes/carla_fleet_overnight_01 --checkpoint models/carla_teacher_refined_cuda.pt --target-speed 8 --lane-guard --traffic-rule-guard --quiet
 scripts\collect_fleet_overnight_windows.bat
 ```
 
 Do not run three separate `main.py collect` terminals against the same CARLA
 world. `collect-fleet` owns the CARLA tick loop once and records all vehicles
 from that shared clock, which is safer for overnight collection.
+
+When `--checkpoint` is set, the dataset still uses CARLA autopilot controls as
+the training labels. The current model's predicted controls are stored as
+`requested_control`, which is useful for comparing the model against the teacher
+without training directly on the model's own mistakes.
 
 ## Command: `train`
 

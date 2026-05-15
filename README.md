@@ -260,7 +260,7 @@ py -3.12 main.py collect-fleet --backend carla [options]
 Example commands:
 
 ```bash
-py -3.12 main.py collect-fleet --backend carla --vehicles 3 --spawn-indices 1 8 15 --steps 360000 --output-root data/episodes/carla_fleet_overnight_01 --quiet
+py -3.12 main.py collect-fleet --backend carla --vehicles 3 --spawn-indices 1 8 15 --steps 360000 --output-root data/episodes/carla_fleet_overnight_01 --checkpoint models/carla_teacher_refined_cuda.pt --target-speed 8 --lane-guard --traffic-rule-guard --quiet
 scripts\collect_fleet_overnight_windows.bat
 ```
 
@@ -275,6 +275,13 @@ episode folder, and avoids multiple Python processes fighting over simulator
 timing. Because CARLA autopilot is driving the recorded vehicles, this is the
 best overnight source for lane following, traffic-light behavior, stop-sign
 behavior, and general road-law examples.
+
+When `--checkpoint` is provided, each recorded vehicle also runs the current
+model in the background. CARLA autopilot remains the driver and training label,
+while the model prediction is saved as `requested_control` in each manifest row.
+That lets the project collect teacher data about where the current model agrees
+or disagrees with CARLA's road-following behavior without copying the model's
+mistakes as labels.
 
 ### Command: `train`
 
