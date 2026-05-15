@@ -6,6 +6,9 @@ __pycache__/
 ~$*.docx
 /logs/
 /!TRAIN_LOG!
+/!COLLECT_LOG!
+/!RUN_ROOT!/
+/!CHUNK_OUT!/
 /data/
 /models/
 !/models/

@@ -1,4 +1,9 @@
 @echo off
+if not "%CODEX_DELAYED_EXPANSION_READY%"=="1" (
+    set "CODEX_DELAYED_EXPANSION_READY=1"
+    cmd /v:on /c call "%~f0" %*
+    exit /b %ERRORLEVEL%
+)
 setlocal EnableExtensions EnableDelayedExpansion
 
 rem Repeats the quick 10-car / 5-sim-minute loop several times.
