@@ -20,7 +20,7 @@ if "%CURRENT_CHECKPOINT%"=="" (
 )
 
 echo Finding stop-sign spawn indices...
-for /f "delims=" %%S in ('py -3.12 scripts\find_stop_sign_spawn_indices.py --host %HOST% --port %PORT% --count %VEHICLES% --lookahead-m %STOP_LOOKAHEAD_M% --near-m %STOP_NEAR_M% --format plain') do set "SPAWN_INDICES=%%S"
+for /f "delims=" %%S in ('py -3.12 scripts\find_stop_sign_spawn_indices.py --host %HOST% --port %PORT% --count %VEHICLES% --lookahead-m %STOP_LOOKAHEAD_M% --near-m %STOP_NEAR_M% --format plain ^| findstr /R "^[0-9][0-9 ]*$"') do set "SPAWN_INDICES=%%S"
 
 if "%SPAWN_INDICES%"=="" (
     echo Could not find stop-sign spawn indices in the current CARLA world.
