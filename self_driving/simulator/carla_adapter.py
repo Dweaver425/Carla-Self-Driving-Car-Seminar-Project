@@ -420,15 +420,28 @@ class CarlaSimulatorClient(SimulatorClient):
         return best
 
     def _stop_sign_details(self, transform: Any) -> dict[str, Any] | None:
+        ego_waypoint = None
+        with suppress(Exception):
+            ego_waypoint = self._world.get_map().get_waypoint(
+                transform.location,
+                project_to_road=True,
+                lane_type=self._carla.LaneType.Driving,
+            )
+
         best: dict[str, Any] | None = None
         for stop_sign in self._stop_sign_actors:
             details = self._traffic_actor_details(stop_sign, transform, state="Stop")
             if details is None:
                 continue
+            if ego_waypoint is not None and not self._is_stop_sign_for_ego_lane(
+                details,
+                ego_waypoint,
+            ):
+                continue
             if (
-                -1.0 <= details["forward_distance_m"] <= 12.0
-                and abs(details["lateral_distance_m"]) <= 5.0
-                and abs(details["angle_deg"]) <= 65.0
+                -0.5 <= details["forward_distance_m"] <= 11.0
+                and abs(details["lateral_distance_m"]) <= 2.8
+                and abs(details["angle_deg"]) <= 35.0
                 and (
                     best is None
                     or details["forward_distance_m"] < best["forward_distance_m"]
@@ -436,6 +449,17 @@ class CarlaSimulatorClient(SimulatorClient):
             ):
                 best = details
         return best
+
+    def _is_stop_sign_for_ego_lane(self, details: dict[str, Any], ego_waypoint: Any) -> bool:
+        sign_road_id = details.get("road_id")
+        sign_lane_id = details.get("lane_id")
+        if sign_road_id is None or sign_lane_id is None:
+            return True
+        if int(sign_road_id) != int(ego_waypoint.road_id):
+            return False
+        # CARLA lane ids use opposite signs for opposite travel directions. Requiring
+        # an exact lane id avoids stopping for signs on the other side of the road.
+        return int(sign_lane_id) == int(ego_waypoint.lane_id)
 
     def _traffic_actor_details(
         self,
@@ -458,10 +482,15 @@ class CarlaSimulatorClient(SimulatorClient):
             angle_deg = math.degrees(
                 math.atan2(lateral_distance_m, max(forward_distance_m, 0.001))
             )
+            waypoint = self._world.get_map().get_waypoint(
+                actor_location,
+                project_to_road=True,
+                lane_type=self._carla.LaneType.Driving,
+            )
         except Exception:
             return None
 
-        return {
+        details = {
             "id": int(actor.id),
             "type_id": str(actor.type_id),
             "state": state,
@@ -470,6 +499,16 @@ class CarlaSimulatorClient(SimulatorClient):
             "lateral_distance_m": float(lateral_distance_m),
             "angle_deg": float(angle_deg),
         }
+        if waypoint is not None:
+            details.update(
+                {
+                    "road_id": int(waypoint.road_id),
+                    "section_id": int(waypoint.section_id),
+                    "lane_id": int(waypoint.lane_id),
+                    "is_junction": bool(waypoint.is_junction),
+                }
+            )
+        return details
 
     def _traffic_actor_location(self, actor: Any) -> Any:
         transform = actor.get_transform()

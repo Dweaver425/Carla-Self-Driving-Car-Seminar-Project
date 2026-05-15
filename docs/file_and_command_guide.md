@@ -670,6 +670,16 @@ model predicts in the background, and those predictions are written as
 `requested_control` so the run captures where the model disagrees with the
 teacher.
 
+To run several improvement rounds automatically:
+
+```bash
+scripts\iterate_fleet_model_windows.bat
+```
+
+Each round collects three guided fleet episode folders and trains the next
+checkpoint from them. This is the safer way to iterate because the labels still
+come from CARLA autopilot rather than from the current model's own mistakes.
+
 The resulting folders can be trained together:
 
 ```bash

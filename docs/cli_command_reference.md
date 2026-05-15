@@ -230,6 +230,15 @@ the training labels. The current model's predicted controls are stored as
 `requested_control`, which is useful for comparing the model against the teacher
 without training directly on the model's own mistakes.
 
+For multiple improvement rounds, run:
+
+```bash
+scripts\iterate_fleet_model_windows.bat
+```
+
+That script alternates between guided 3-car CARLA collection and fine-tuning.
+The next collection round uses the checkpoint produced by the previous round.
+
 ## Command: `train`
 
 ### What it does
