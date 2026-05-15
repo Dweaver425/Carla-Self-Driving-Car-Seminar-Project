@@ -439,9 +439,8 @@ class CarlaSimulatorClient(SimulatorClient):
             ):
                 continue
             if (
-                -0.5 <= details["forward_distance_m"] <= 11.0
-                and abs(details["lateral_distance_m"]) <= 2.8
-                and abs(details["angle_deg"]) <= 35.0
+                -0.5 <= details["forward_distance_m"] <= 18.0
+                and self._stop_sign_geometry_matches_ego_lane(details, ego_waypoint)
                 and (
                     best is None
                     or details["forward_distance_m"] < best["forward_distance_m"]
@@ -451,6 +450,9 @@ class CarlaSimulatorClient(SimulatorClient):
         return best
 
     def _is_stop_sign_for_ego_lane(self, details: dict[str, Any], ego_waypoint: Any) -> bool:
+        if self._stop_sign_trigger_intersects_ego_lane(details, ego_waypoint):
+            return True
+
         sign_road_id = details.get("road_id")
         sign_lane_id = details.get("lane_id")
         if sign_road_id is None or sign_lane_id is None:
@@ -460,6 +462,39 @@ class CarlaSimulatorClient(SimulatorClient):
         # CARLA lane ids use opposite signs for opposite travel directions. Requiring
         # an exact lane id avoids stopping for signs on the other side of the road.
         return int(sign_lane_id) == int(ego_waypoint.lane_id)
+
+    def _stop_sign_geometry_matches_ego_lane(
+        self,
+        details: dict[str, Any],
+        ego_waypoint: Any | None,
+    ) -> bool:
+        if ego_waypoint is not None and self._stop_sign_trigger_intersects_ego_lane(
+            details,
+            ego_waypoint,
+        ):
+            return True
+
+        # Fallback for maps/actors without usable trigger-volume metadata.
+        return abs(details["lateral_distance_m"]) <= 3.4 and abs(details["angle_deg"]) <= 45.0
+
+    def _stop_sign_trigger_intersects_ego_lane(
+        self,
+        details: dict[str, Any],
+        ego_waypoint: Any,
+    ) -> bool:
+        min_forward = details.get("trigger_min_forward_m")
+        max_forward = details.get("trigger_max_forward_m")
+        min_abs_lateral = details.get("trigger_min_abs_lateral_m")
+        if min_forward is None or max_forward is None or min_abs_lateral is None:
+            return False
+
+        lane_width = float(getattr(ego_waypoint, "lane_width", 3.5) or 3.5)
+        lane_corridor_half_width = (lane_width * 0.5) + 0.45
+        return (
+            float(max_forward) >= -0.5
+            and float(min_forward) <= 18.0
+            and float(min_abs_lateral) <= lane_corridor_half_width
+        )
 
     def _traffic_actor_details(
         self,
@@ -487,6 +522,7 @@ class CarlaSimulatorClient(SimulatorClient):
                 project_to_road=True,
                 lane_type=self._carla.LaneType.Driving,
             )
+            trigger_metrics = self._traffic_actor_trigger_metrics(actor, ego_transform)
         except Exception:
             return None
 
@@ -499,6 +535,8 @@ class CarlaSimulatorClient(SimulatorClient):
             "lateral_distance_m": float(lateral_distance_m),
             "angle_deg": float(angle_deg),
         }
+        if trigger_metrics is not None:
+            details.update(trigger_metrics)
         if waypoint is not None:
             details.update(
                 {
@@ -509,6 +547,43 @@ class CarlaSimulatorClient(SimulatorClient):
                 }
             )
         return details
+
+    def _traffic_actor_trigger_metrics(
+        self,
+        actor: Any,
+        ego_transform: Any,
+    ) -> dict[str, float] | None:
+        trigger_volume = getattr(actor, "trigger_volume", None)
+        if trigger_volume is None:
+            return None
+
+        actor_transform = actor.get_transform()
+        center = trigger_volume.location
+        extent = trigger_volume.extent
+        local_points = [
+            self._carla.Location(x=center.x, y=center.y, z=center.z),
+            self._carla.Location(x=center.x + extent.x, y=center.y + extent.y, z=center.z),
+            self._carla.Location(x=center.x + extent.x, y=center.y - extent.y, z=center.z),
+            self._carla.Location(x=center.x - extent.x, y=center.y + extent.y, z=center.z),
+            self._carla.Location(x=center.x - extent.x, y=center.y - extent.y, z=center.z),
+        ]
+        forward = ego_transform.get_forward_vector()
+        right = ego_transform.get_right_vector()
+        forward_distances = []
+        lateral_distances = []
+        for local_point in local_points:
+            world_point = actor_transform.transform(local_point)
+            delta_x = world_point.x - ego_transform.location.x
+            delta_y = world_point.y - ego_transform.location.y
+            forward_distances.append((delta_x * forward.x) + (delta_y * forward.y))
+            lateral_distances.append((delta_x * right.x) + (delta_y * right.y))
+
+        return {
+            "trigger_min_forward_m": float(min(forward_distances)),
+            "trigger_max_forward_m": float(max(forward_distances)),
+            "trigger_min_abs_lateral_m": float(min(abs(value) for value in lateral_distances)),
+            "trigger_max_abs_lateral_m": float(max(abs(value) for value in lateral_distances)),
+        }
 
     def _traffic_actor_location(self, actor: Any) -> Any:
         transform = actor.get_transform()

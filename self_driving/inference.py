@@ -11,7 +11,7 @@ from self_driving.types import ControlCommand, DrivingObservation
 STOP_HOLD_STEPS = 25
 TRAFFIC_LIGHT_STOP_BUFFER_M = 2.0
 TRAFFIC_LIGHT_LOOKAHEAD_M = 24.0
-STOP_SIGN_LOOKAHEAD_M = 16.0
+STOP_SIGN_LOOKAHEAD_M = 20.0
 
 
 class ModelController:
