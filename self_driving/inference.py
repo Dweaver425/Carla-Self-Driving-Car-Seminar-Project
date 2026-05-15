@@ -9,6 +9,9 @@ from self_driving.modeling import image_to_tensor, load_driving_model
 from self_driving.types import ControlCommand, DrivingObservation
 
 STOP_HOLD_STEPS = 25
+TRAFFIC_LIGHT_STOP_BUFFER_M = 2.0
+TRAFFIC_LIGHT_LOOKAHEAD_M = 24.0
+STOP_SIGN_LOOKAHEAD_M = 16.0
 
 
 class ModelController:
@@ -103,8 +106,12 @@ class ModelController:
         details = observation.traffic_rule_details or {}
         traffic_light = details.get("traffic_light")
         if isinstance(traffic_light, dict) and traffic_light.get("state") in {"Red", "Yellow"}:
-            forward_distance = float(traffic_light.get("forward_distance_m", 0.0))
-            if -1.0 <= forward_distance <= 14.0:
+            forward_distance = float(traffic_light.get("forward_distance_m", 999.0))
+            if self._must_stop_for_rule(
+                observation,
+                forward_distance_m=forward_distance,
+                max_lookahead_m=TRAFFIC_LIGHT_LOOKAHEAD_M,
+            ):
                 return 0.0, max(brake, self._brake_for_rule_stop(observation))
 
         stop_sign = details.get("stop_sign")
@@ -115,7 +122,11 @@ class ModelController:
 
         stop_id = int(stop_sign.get("id", -1))
         forward_distance = float(stop_sign.get("forward_distance_m", 999.0))
-        if stop_id in self._cleared_stop_sign_ids or not (-1.0 <= forward_distance <= 8.5):
+        if stop_id in self._cleared_stop_sign_ids or not self._must_stop_for_rule(
+            observation,
+            forward_distance_m=forward_distance,
+            max_lookahead_m=STOP_SIGN_LOOKAHEAD_M,
+        ):
             return throttle, brake
 
         if self._active_stop_sign_id != stop_id:
@@ -134,7 +145,27 @@ class ModelController:
         self._stop_hold_steps = 0
         return throttle, brake
 
+    def _must_stop_for_rule(
+        self,
+        observation: DrivingObservation,
+        *,
+        forward_distance_m: float,
+        max_lookahead_m: float,
+    ) -> bool:
+        if forward_distance_m < -TRAFFIC_LIGHT_STOP_BUFFER_M:
+            return False
+        if forward_distance_m <= 1.0:
+            return True
+
+        # Start braking earlier at higher speed. This approximates a comfortable
+        # stopping distance without needing CARLA-specific traffic-light geometry.
+        speed = max(float(observation.state.speed_mps), 0.0)
+        stopping_distance = 2.0 + (speed * 1.2) + ((speed * speed) / 7.0)
+        return forward_distance_m <= min(max_lookahead_m, stopping_distance)
+
     def _brake_for_rule_stop(self, observation: DrivingObservation) -> float:
+        if observation.state.speed_mps > 6.0:
+            return 1.0
         if observation.state.speed_mps > 3.5:
             return 0.9
         if observation.state.speed_mps > 1.0:
