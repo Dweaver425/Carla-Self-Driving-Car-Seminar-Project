@@ -15,7 +15,7 @@ set "CURRENT_CHECKPOINT=%~1"
 set "DEVICE=cuda"
 set "EPOCHS=2"
 set "BATCH_SIZE=128"
-set "NUM_WORKERS=8"
+set "NUM_WORKERS=0"
 set "LEARNING_RATE=0.00005"
 set "VAL_SPLIT=0.1"
 set "LOG_INTERVAL=100"
@@ -27,6 +27,8 @@ if "%CURRENT_CHECKPOINT%"=="" set "CURRENT_CHECKPOINT=models\carla_teacher_refin
 
 for /f %%I in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss"') do set "STAMP=%%I"
 set "RUN_ROOT=data\episodes\quick_10car_continue_!STAMP!"
+set "LOG_DIR=logs"
+if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 
 echo Continuing quick 10-car iterations
 echo Starting checkpoint: %CURRENT_CHECKPOINT%
@@ -44,12 +46,15 @@ pause >nul
 for /l %%I in (1,1,%ITERATIONS%) do (
     set "ITER_OUT=!RUN_ROOT!\iteration_%%I"
     set "NEXT_CHECKPOINT=models\carla_quick_continue_!STAMP!_iter_%%I_cuda.pt"
+    set "COLLECT_LOG=%LOG_DIR%\quick_continue_!STAMP!_iter_%%I_collect.log"
+    set "TRAIN_LOG=%LOG_DIR%\quick_continue_!STAMP!_iter_%%I_train.log"
 
     echo.
     echo [%%I/%ITERATIONS%] Collecting 10-car comparison with !CURRENT_CHECKPOINT!
-    py -3.12 main.py collect-fleet --backend carla --host %HOST% --port %PORT% --tm-port %TM_PORT% --vehicles %VEHICLES% --spawn-indices %SPAWN_INDICES% --steps %STEPS% --output-root "!ITER_OUT!" --checkpoint "!CURRENT_CHECKPOINT!" --target-speed 8 --lane-guard --traffic-rule-guard --quiet
+    py -3.12 main.py collect-fleet --backend carla --host %HOST% --port %PORT% --tm-port %TM_PORT% --vehicles %VEHICLES% --spawn-indices %SPAWN_INDICES% --steps %STEPS% --output-root "!ITER_OUT!" --checkpoint "!CURRENT_CHECKPOINT!" --target-speed 8 --lane-guard --traffic-rule-guard --quiet > "!COLLECT_LOG!" 2>&1
     if errorlevel 1 (
         echo Collection failed during iteration %%I.
+        echo See log: !COLLECT_LOG!
         exit /b 1
     )
 
@@ -62,9 +67,10 @@ for /l %%I in (1,1,%ITERATIONS%) do (
 
     echo.
     echo [%%I/%ITERATIONS%] Fine-tuning to !NEXT_CHECKPOINT!
-    py -3.12 main.py train --init-checkpoint "!CURRENT_CHECKPOINT!" --dataset !DATASETS! --output "!NEXT_CHECKPOINT!" --device %DEVICE% --epochs %EPOCHS% --batch-size %BATCH_SIZE% --num-workers %NUM_WORKERS% --learning-rate %LEARNING_RATE% --val-split %VAL_SPLIT% --log-interval %LOG_INTERVAL%
+    py -3.12 main.py train --init-checkpoint "!CURRENT_CHECKPOINT!" --dataset !DATASETS! --output "!NEXT_CHECKPOINT!" --device %DEVICE% --epochs %EPOCHS% --batch-size %BATCH_SIZE% --num-workers %NUM_WORKERS% --learning-rate %LEARNING_RATE% --val-split %VAL_SPLIT% --log-interval %LOG_INTERVAL% > "!TRAIN_LOG!" 2>&1
     if errorlevel 1 (
         echo Training failed during iteration %%I.
+        echo See log: !TRAIN_LOG!
         exit /b 1
     )
 
