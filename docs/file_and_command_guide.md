@@ -604,6 +604,7 @@ Purpose:
 ```bash
 py -3.12 main.py train --dataset data/episodes/run_01 --output models/driving_model.pt
 py -3.12 main.py train --dataset data/episodes/run_01 data/episodes/run_02 --output models/driving_model.pt --num-workers 4
+py -3.12 main.py train --dataset data/episodes/carla_fleet_overnight_01/vehicle_01 data/episodes/carla_fleet_overnight_01/vehicle_02 data/episodes/carla_fleet_overnight_01/vehicle_03 --output models/carla_fleet_teacher_cuda.pt --device cuda --epochs 4 --batch-size 128 --num-workers 8 --val-split 0.1 --log-interval 100
 py -3.12 main.py train --dataset data/raw/carla_weekend_combined/carla_weekend_combined --output models/carla_weekend_tar_index_cuda.pt --device cuda --epochs 4 --batch-size 256 --num-workers 8 --val-split 0.1 --log-interval 100
 py -3.12 main.py train --init-checkpoint models/carla_lane_recovery_cuda.pt --dataset data/episodes/traffic_ped_guided_1h_01 data/episodes/lane_correction_spawn1_speed4_01 data/episodes/recovery_spawn1_right_yaw_01 data/episodes/recovery_spawn1_left_yaw_01 data/episodes/recovery_spawn1_right_counter_01 data/episodes/recovery_spawn1_left_counter_01 data/episodes/autopilot_teacher_spawn1_30min_01 --output models/carla_teacher_refined_cuda.pt --device cuda --epochs 4 --batch-size 128 --num-workers 8 --learning-rate 0.00005 --val-split 0.1 --log-interval 100
 ```
@@ -652,6 +653,23 @@ Output to check:
 ## Practical Training Process Used In This Project
 
 This project used an iterative training process instead of relying on one dataset and one model.
+
+### Multi-car overnight collection
+
+For larger teacher datasets, use `collect-fleet` instead of opening several
+`collect` terminals. It spawns multiple CARLA autopilot vehicles in one
+synchronized world and writes one episode folder per vehicle:
+
+```bash
+py -3.12 main.py collect-fleet --backend carla --vehicles 3 --spawn-indices 1 8 15 --steps 360000 --output-root data/episodes/carla_fleet_overnight_01 --quiet
+scripts\collect_fleet_overnight_windows.bat
+```
+
+The resulting folders can be trained together:
+
+```bash
+py -3.12 main.py train --dataset data/episodes/carla_fleet_overnight_01/vehicle_01 data/episodes/carla_fleet_overnight_01/vehicle_02 data/episodes/carla_fleet_overnight_01/vehicle_03 --output models/carla_fleet_teacher_cuda.pt --device cuda --epochs 4 --batch-size 128 --num-workers 8 --val-split 0.1 --log-interval 100
+```
 
 ### What was done
 

@@ -12,6 +12,7 @@ from typing import Any
 from self_driving.config import SimulationConfig
 from self_driving.control import AutopilotController, DemoController, LaneKeepingController
 from self_driving.data.recording import EpisodeRecorder
+from self_driving.fleet_collection import collect_carla_fleet
 from self_driving.inference import ModelController
 from self_driving.networking.client import TelemetryPublisher
 from self_driving.networking.server import serve_coordinator
@@ -20,7 +21,7 @@ from self_driving.simulator.carla_adapter import CarlaSimulatorClient
 from self_driving.simulator.mock import MockSimulatorClient
 from self_driving.training import TrainingConfig, train_model
 
-COMMAND_NAMES = {"env", "demo", "collect", "train", "infer", "serve"}
+COMMAND_NAMES = {"env", "demo", "collect", "collect-fleet", "train", "infer", "serve"}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -57,6 +58,36 @@ def build_parser() -> argparse.ArgumentParser:
         help="Episode output directory. Defaults to a timestamped folder under data/episodes.",
     )
     collect_parser.add_argument("--show-env", action="store_true", help="Print environment details.")
+
+    fleet_collect_parser = subparsers.add_parser(
+        "collect-fleet",
+        help="Record multiple CARLA autopilot vehicles in one synchronized run.",
+    )
+    add_simulation_arguments(fleet_collect_parser)
+    fleet_collect_parser.add_argument(
+        "--vehicles",
+        type=int,
+        default=3,
+        help="Number of ego vehicles to spawn and record.",
+    )
+    fleet_collect_parser.add_argument(
+        "--spawn-indices",
+        nargs="+",
+        type=int,
+        default=[1, 8, 15],
+        help="Spawn point indices to try for the recorded vehicles.",
+    )
+    fleet_collect_parser.add_argument(
+        "--output-root",
+        default="data/episodes/carla_fleet_overnight",
+        help="Root folder where vehicle_01, vehicle_02, etc. episodes are saved.",
+    )
+    fleet_collect_parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Suppress progress logs except for the final summary.",
+    )
+    fleet_collect_parser.add_argument("--show-env", action="store_true", help="Print environment details.")
 
     train_parser = subparsers.add_parser("train", help="Train a behavior-cloning model.")
     train_parser.add_argument(
@@ -388,6 +419,22 @@ def handle_collect(args: argparse.Namespace) -> None:
     handle_drive(args, controller_name=controller_name, recorder=recorder)
 
 
+def handle_collect_fleet(args: argparse.Namespace) -> None:
+    if args.backend != "carla":
+        raise ValueError("The collect-fleet command is only available with the CARLA backend.")
+    if getattr(args, "show_env", False):
+        print_environment()
+        print()
+    summary = collect_carla_fleet(
+        config=build_config(args),
+        output_root=args.output_root,
+        vehicle_count=args.vehicles,
+        spawn_indices=args.spawn_indices,
+        quiet=args.quiet,
+    )
+    print(json.dumps(summary, sort_keys=True))
+
+
 def handle_train(args: argparse.Namespace) -> None:
     summary = train_model(
         TrainingConfig(
@@ -444,6 +491,9 @@ def main() -> None:
             return
         if args.command == "collect":
             handle_collect(args)
+            return
+        if args.command == "collect-fleet":
+            handle_collect_fleet(args)
             return
         if args.command == "train":
             handle_train(args)

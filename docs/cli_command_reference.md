@@ -27,6 +27,7 @@ py -3.12 main.py <command> [options]
 | `env` | Check your Python environment | Use first, before running anything else |
 | `demo` | Drive without saving data | Use for quick testing |
 | `collect` | Save a driving dataset | Use before training |
+| `collect-fleet` | Save multiple CARLA autopilot teacher datasets at once | Use for overnight multi-car data |
 | `train` | Train the driving model | Use after collecting data |
 | `infer` | Let a trained checkpoint or CARLA autopilot drive | Use to test driving behavior |
 | `serve` | Start the fleet server | Use when vehicles should publish telemetry |
@@ -173,6 +174,53 @@ py -3.12 main.py collect --backend mock --controller lane --output data/episodes
 py -3.12 main.py collect --backend carla --controller autopilot --steps 1000 --output data/episodes/carla_run_01
 ```
 
+## Command: `collect-fleet`
+
+### What it does
+
+Runs multiple CARLA autopilot teacher vehicles in the same synchronized CARLA
+session and records each vehicle as a separate episode folder.
+
+### Good time to use it
+
+Use `collect-fleet` for overnight data collection when you want 2-3 times more
+teacher data without starting multiple Python processes.
+
+### Base command
+
+```bash
+py -3.12 main.py collect-fleet --backend carla [options]
+```
+
+### Extra parameters for `collect-fleet`
+
+| Flag | Type | Default | Simple meaning |
+| --- | --- | --- | --- |
+| `--vehicles` | `int` | `3` | Number of recorded autopilot vehicles. |
+| `--spawn-indices` | `one or more int values` | `1 8 15` | Spawn points to try for the recorded vehicles. |
+| `--output-root` | `string/path` | `data/episodes/carla_fleet_overnight` | Root folder containing `vehicle_01`, `vehicle_02`, etc. |
+| `--steps` | `int` | `120` | Number of CARLA ticks to record. |
+| `--quiet` | flag | `False` | Suppress progress logs except final summary. |
+
+### Output to check
+
+- `vehicle_01/metadata.json`
+- `vehicle_01/manifest.jsonl`
+- `vehicle_01/images/`
+- matching folders for every other recorded vehicle
+
+### Example commands
+
+```bash
+py -3.12 main.py collect-fleet --backend carla --vehicles 2 --spawn-indices 1 8 --steps 36000 --output-root data/episodes/carla_fleet_test_01 --quiet
+py -3.12 main.py collect-fleet --backend carla --vehicles 3 --spawn-indices 1 8 15 --steps 360000 --output-root data/episodes/carla_fleet_overnight_01 --quiet
+scripts\collect_fleet_overnight_windows.bat
+```
+
+Do not run three separate `main.py collect` terminals against the same CARLA
+world. `collect-fleet` owns the CARLA tick loop once and records all vehicles
+from that shared clock, which is safer for overnight collection.
+
 ## Command: `train`
 
 ### What it does
@@ -243,6 +291,7 @@ py -3.12 main.py train --dataset data/episodes/mock_run_01
 py -3.12 main.py train --dataset data/episodes/mock_run_01 --epochs 10 --batch-size 8
 py -3.12 main.py train --dataset data/episodes/carla_run_01 data/episodes/carla_run_02 --output models/carla_combined.pt --num-workers 4
 py -3.12 main.py train --dataset data/episodes/carla_run_01 --output models/carla_run_01_cuda.pt --device cuda
+py -3.12 main.py train --dataset data/episodes/carla_fleet_overnight_01/vehicle_01 data/episodes/carla_fleet_overnight_01/vehicle_02 data/episodes/carla_fleet_overnight_01/vehicle_03 --output models/carla_fleet_teacher_cuda.pt --device cuda --epochs 4 --batch-size 128 --num-workers 8 --val-split 0.1 --log-interval 100
 py -3.12 main.py train --dataset data/raw/carla_weekend_combined/carla_weekend_combined --output models/carla_weekend_tar_index_cuda.pt --device cuda --epochs 4 --batch-size 256 --num-workers 8 --val-split 0.1 --log-interval 100
 py -3.12 main.py train --init-checkpoint models/carla_weekend_traffic_ped_1h_balanced_cuda.pt --dataset data/episodes/lane_correction_spawn1_speed4_01 data/episodes/lane_corrected_guided_test_01 --output models/carla_lane_finetuned_cuda.pt --device cuda --epochs 3 --batch-size 128 --num-workers 8 --learning-rate 0.0001 --val-split 0.1 --log-interval 100
 py -3.12 main.py train --init-checkpoint models/carla_lane_recovery_cuda.pt --dataset data/episodes/traffic_ped_guided_1h_01 data/episodes/lane_correction_spawn1_speed4_01 data/episodes/recovery_spawn1_right_yaw_01 data/episodes/recovery_spawn1_left_yaw_01 data/episodes/recovery_spawn1_right_counter_01 data/episodes/recovery_spawn1_left_counter_01 data/episodes/autopilot_teacher_spawn1_30min_01 --output models/carla_teacher_refined_cuda.pt --device cuda --epochs 4 --batch-size 128 --num-workers 8 --learning-rate 0.00005 --val-split 0.1 --log-interval 100

@@ -223,6 +223,7 @@ Output to check:
 
 Purpose:
 - record camera images, vehicle state, and applied controls for later training
+- record several CARLA autopilot teacher vehicles at once with `collect-fleet`
 
 Base command:
 
@@ -245,6 +246,36 @@ Output to check:
 
 On CARLA, `collect` defaults to the built-in autopilot teacher when no controller is specified.
 
+### Command: `collect-fleet`
+
+Purpose:
+- record 2-3 CARLA autopilot teacher vehicles at the same time for larger overnight datasets
+
+Base command:
+
+```bash
+py -3.12 main.py collect-fleet --backend carla [options]
+```
+
+Example commands:
+
+```bash
+py -3.12 main.py collect-fleet --backend carla --vehicles 3 --spawn-indices 1 8 15 --steps 360000 --output-root data/episodes/carla_fleet_overnight_01 --quiet
+scripts\collect_fleet_overnight_windows.bat
+```
+
+Output structure:
+- `data/episodes/carla_fleet_overnight_01/vehicle_01`
+- `data/episodes/carla_fleet_overnight_01/vehicle_02`
+- `data/episodes/carla_fleet_overnight_01/vehicle_03`
+
+Use `collect-fleet` instead of starting three separate `collect` terminals. It
+keeps CARLA in one synchronized tick loop, records each ego vehicle into its own
+episode folder, and avoids multiple Python processes fighting over simulator
+timing. Because CARLA autopilot is driving the recorded vehicles, this is the
+best overnight source for lane following, traffic-light behavior, stop-sign
+behavior, and general road-law examples.
+
 ### Command: `train`
 
 Purpose:
@@ -261,6 +292,7 @@ Example commands:
 ```bash
 py -3.12 main.py train --dataset data/episodes/run_01 --output models/driving_model.pt
 py -3.12 main.py train --dataset data/episodes/run_01 data/episodes/run_02 --output models/driving_model.pt --epochs 8 --batch-size 16 --num-workers 6
+py -3.12 main.py train --dataset data/episodes/carla_fleet_overnight_01/vehicle_01 data/episodes/carla_fleet_overnight_01/vehicle_02 data/episodes/carla_fleet_overnight_01/vehicle_03 --output models/carla_fleet_teacher_cuda.pt --device cuda --epochs 4 --batch-size 128 --num-workers 8 --val-split 0.1 --log-interval 100
 py -3.12 main.py train --dataset data/raw/carla_weekend_combined/carla_weekend_combined --output models/carla_weekend_tar_index_cuda.pt --device cuda --epochs 4 --batch-size 256 --num-workers 8 --val-split 0.1 --log-interval 100
 py -3.12 main.py train --init-checkpoint models/carla_weekend_traffic_ped_1h_balanced_cuda.pt --dataset data/episodes/lane_correction_spawn1_speed4_01 data/episodes/lane_corrected_guided_test_01 --output models/carla_lane_finetuned_cuda.pt --device cuda --epochs 3 --batch-size 128 --num-workers 8 --learning-rate 0.0001 --val-split 0.1 --log-interval 100
 py -3.12 main.py train --init-checkpoint models/carla_lane_recovery_cuda.pt --dataset data/episodes/traffic_ped_guided_1h_01 data/episodes/lane_correction_spawn1_speed4_01 data/episodes/recovery_spawn1_right_yaw_01 data/episodes/recovery_spawn1_left_yaw_01 data/episodes/recovery_spawn1_right_counter_01 data/episodes/recovery_spawn1_left_counter_01 data/episodes/autopilot_teacher_spawn1_30min_01 --output models/carla_teacher_refined_cuda.pt --device cuda --epochs 4 --batch-size 128 --num-workers 8 --learning-rate 0.00005 --val-split 0.1 --log-interval 100
@@ -432,6 +464,7 @@ The full parameter list is in [docs/cli_command_reference.md](docs/cli_command_r
 For Windows overnight runs, use:
 
 - `scripts/collect_overnight_windows.bat`: collects many smaller CARLA autopilot segments back-to-back
+- `scripts/collect_fleet_overnight_windows.bat`: records 2-3 CARLA autopilot teacher vehicles at the same time
 - `scripts/train_overnight_segments_windows.bat`: trains one model from all collected `segment_*` folders
 - `scripts/package_segmented_dataset.py`: rewrites many `segment_*` folders into one combined dataset TAR for easier transfer and later training
 - `scripts/train_carla_tar_index_windows.bat`: trains from a TAR-indexed CARLA dataset on CUDA
