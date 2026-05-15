@@ -16,7 +16,7 @@ set "OUTPUT_CHECKPOINT=%~3"
 set "DEVICE=cuda"
 set "EPOCHS=2"
 set "BATCH_SIZE=64"
-set "NUM_WORKERS=0"
+if "%NUM_WORKERS%"=="" set "NUM_WORKERS=4"
 set "LEARNING_RATE=0.00005"
 set "VAL_SPLIT=0.1"
 set "LOG_INTERVAL=100"
@@ -62,6 +62,7 @@ echo Dataset folders: %DATASET_COUNT%
 echo Dataset file: %DATASET_FILE%
 echo Init checkpoint: %INIT_CHECKPOINT%
 echo Output checkpoint: %OUTPUT_CHECKPOINT%
+echo Num workers: %NUM_WORKERS%
 echo.
 
 py -3.12 main.py train --init-checkpoint "%INIT_CHECKPOINT%" --dataset-file "%DATASET_FILE%" --output "%OUTPUT_CHECKPOINT%" --device %DEVICE% --epochs %EPOCHS% --batch-size %BATCH_SIZE% --num-workers %NUM_WORKERS% --learning-rate %LEARNING_RATE% --val-split %VAL_SPLIT% --log-interval %LOG_INTERVAL%

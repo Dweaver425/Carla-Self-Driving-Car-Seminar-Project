@@ -7,6 +7,7 @@ __pycache__/
 /logs/
 /!TRAIN_LOG!
 /!COLLECT_LOG!
+/!DATASET_FILE!
 /!RUN_ROOT!/
 /!CHUNK_OUT!/
 /data/
