@@ -239,6 +239,17 @@ scripts\iterate_fleet_model_windows.bat
 That script alternates between guided 3-car CARLA collection and fine-tuning.
 The next collection round uses the checkpoint produced by the previous round.
 
+For a faster smoke-test iteration, run:
+
+```bash
+scripts\quick_iterate_10car_5min_windows.bat
+```
+
+That script records 10 CARLA autopilot teacher cars for `6000` ticks, which is
+5 simulated minutes at the default `0.05` second fixed tick. It also writes
+`fleet_summary.json` with average and maximum control deltas between the current
+model and CARLA autopilot.
+
 ## Command: `train`
 
 ### What it does

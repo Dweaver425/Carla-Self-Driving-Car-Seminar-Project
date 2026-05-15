@@ -294,6 +294,17 @@ the latest checkpoint, and then uses the newly trained checkpoint for the next
 collection round. This is useful when the model mostly works but needs more
 reliable examples around traffic, stop signs, and recovery cases.
 
+For a quick 5-minute comparison/fine-tune pass, use:
+
+```bash
+scripts\quick_iterate_10car_5min_windows.bat
+```
+
+That script spawns 10 CARLA autopilot teacher cars at different spawn points,
+runs the current checkpoint in the background on every car, writes a
+`fleet_summary.json` comparison report, and trains a short fine-tuned checkpoint
+from the 10 collected episode folders.
+
 ### Command: `train`
 
 Purpose:
@@ -484,6 +495,7 @@ For Windows overnight runs, use:
 - `scripts/collect_overnight_windows.bat`: collects many smaller CARLA autopilot segments back-to-back
 - `scripts/collect_fleet_overnight_windows.bat`: records 2-3 CARLA autopilot teacher vehicles at the same time
 - `scripts/iterate_fleet_model_windows.bat`: repeats guided fleet collection and fine-tuning for several model-improvement rounds
+- `scripts/quick_iterate_10car_5min_windows.bat`: runs 10 guided fleet cars for 5 simulated minutes and trains one quick checkpoint
 - `scripts/train_overnight_segments_windows.bat`: trains one model from all collected `segment_*` folders
 - `scripts/package_segmented_dataset.py`: rewrites many `segment_*` folders into one combined dataset TAR for easier transfer and later training
 - `scripts/train_carla_tar_index_windows.bat`: trains from a TAR-indexed CARLA dataset on CUDA

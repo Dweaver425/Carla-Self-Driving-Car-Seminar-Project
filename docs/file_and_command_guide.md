@@ -680,6 +680,16 @@ Each round collects three guided fleet episode folders and trains the next
 checkpoint from them. This is the safer way to iterate because the labels still
 come from CARLA autopilot rather than from the current model's own mistakes.
 
+For a quick 10-car comparison and short fine-tune:
+
+```bash
+scripts\quick_iterate_10car_5min_windows.bat
+```
+
+This runs 10 guided CARLA autopilot cars for 5 simulated minutes. After
+collection, inspect `fleet_summary.json` under the generated output folder to
+compare the current model's predicted controls against CARLA autopilot.
+
 The resulting folders can be trained together:
 
 ```bash

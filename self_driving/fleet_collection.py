@@ -59,6 +59,14 @@ class FleetCarlaCollector:
         self._setup()
         frames_recorded = 0
         collision_counts = [0 for _ in self._vehicles]
+        total_abs_control_delta = [
+            {"throttle": 0.0, "steering": 0.0, "brake": 0.0}
+            for _ in self._vehicles
+        ]
+        max_abs_control_delta = [
+            {"throttle": 0.0, "steering": 0.0, "brake": 0.0}
+            for _ in self._vehicles
+        ]
         try:
             for step in range(self.config.steps):
                 self._tick_world()
@@ -76,6 +84,18 @@ class FleetCarlaCollector:
                             observation,
                             step,
                         )
+                        applied_control = observation.state.control
+                        deltas = {
+                            "throttle": abs(applied_control.throttle - requested_control.throttle),
+                            "steering": abs(applied_control.steering - requested_control.steering),
+                            "brake": abs(applied_control.brake - requested_control.brake),
+                        }
+                        for key, value in deltas.items():
+                            total_abs_control_delta[index][key] += value
+                            max_abs_control_delta[index][key] = max(
+                                max_abs_control_delta[index][key],
+                                value,
+                            )
                     self._recorders[index].record(
                         observation,
                         observation.state.control,
@@ -99,7 +119,7 @@ class FleetCarlaCollector:
         finally:
             self._teardown()
 
-        return {
+        summary = {
             "event": "fleet_collection_complete",
             "frames_per_vehicle": frames_recorded,
             "output_root": str(self.output_root),
@@ -109,6 +129,27 @@ class FleetCarlaCollector:
             "model_checkpoint": str(self.checkpoint_path) if self.checkpoint_path else None,
             "requested_control_recorded": bool(self._model_controllers),
         }
+        if self._model_controllers:
+            per_vehicle_average = [
+                {
+                    key: value / max(frames_recorded, 1)
+                    for key, value in vehicle_totals.items()
+                }
+                for vehicle_totals in total_abs_control_delta
+            ]
+            summary["per_vehicle_average_abs_control_delta"] = per_vehicle_average
+            summary["per_vehicle_max_abs_control_delta"] = max_abs_control_delta
+            summary["average_abs_control_delta"] = {
+                key: sum(vehicle[key] for vehicle in per_vehicle_average)
+                / max(len(per_vehicle_average), 1)
+                for key in ("throttle", "steering", "brake")
+            }
+            summary["max_abs_control_delta"] = {
+                key: max(vehicle[key] for vehicle in max_abs_control_delta)
+                for key in ("throttle", "steering", "brake")
+            }
+        self._write_summary(summary)
+        return summary
 
     def _setup(self) -> None:
         try:
@@ -370,6 +411,15 @@ class FleetCarlaCollector:
             with suppress(Exception):
                 self._world.apply_settings(self._original_settings)
 
+    def _write_summary(self, summary: dict[str, Any]) -> None:
+        with suppress(Exception):
+            self.output_root.mkdir(parents=True, exist_ok=True)
+            summary_path = self.output_root / "fleet_summary.json"
+            summary_path.write_text(
+                json.dumps(summary, indent=2, sort_keys=True),
+                encoding="utf-8",
+            )
+
 
 def collect_carla_fleet(
     *,
@@ -385,8 +435,8 @@ def collect_carla_fleet(
 ) -> dict[str, Any]:
     if vehicle_count < 1:
         raise ValueError("vehicle_count must be at least 1.")
-    if vehicle_count > 8:
-        raise ValueError("vehicle_count is capped at 8 to keep camera recording manageable.")
+    if vehicle_count > 10:
+        raise ValueError("vehicle_count is capped at 10 to keep camera recording manageable.")
     if len(spawn_indices) < vehicle_count:
         spawn_indices = [*spawn_indices, *range(len(spawn_indices), vehicle_count)]
     root = Path(output_root)
