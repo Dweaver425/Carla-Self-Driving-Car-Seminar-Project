@@ -32,9 +32,9 @@ The software pipeline is working end-to-end:
 
 The latest public checkpoint in this repository is:
 
-- `models/carla_teacher_refined_cuda.pt`
+- `models/teacherRefined_v1_cuda.pt`
 
-It was fine-tuned from `models/carla_lane_recovery_cuda.pt` using seven CARLA
+It was fine-tuned from `models/laneRecovery_v1_cuda.pt` using seven CARLA
 teacher/recovery datasets, CUDA mixed-precision training, `136000` total
 samples, and a `0.1` validation split. Older checkpoints remain useful for
 comparison, but the refined teacher checkpoint is the current recommended
@@ -130,6 +130,16 @@ This project prefers `py -3.12` in command examples so the Python version is exp
 On Windows, the repo also includes `py.cmd`. When Command Prompt is opened in
 this project folder, it lets `py -3.12 ...` run through the project `.venv` even
 if the global Windows Python Launcher is not installed.
+
+### Run naming convention
+
+Long timestamped folders still work, but active CARLA collection workflows also
+accept short run names such as `10hr2cars_v1`, `5hr2cars_v2`, and
+`stopSigns_v1`. The run name is reused for `data\episodes`, `data\raw` TAR
+shards, `models`, and `logs` so each chunk stays easy to track.
+
+See [docs/run_naming_scheme.md](docs/run_naming_scheme.md) for copy-paste
+examples.
 
 ### 1. Create a Python environment
 
@@ -260,7 +270,7 @@ py -3.12 main.py collect-fleet --backend carla [options]
 Example commands:
 
 ```bash
-py -3.12 main.py collect-fleet --backend carla --vehicles 3 --spawn-indices 1 8 15 --steps 360000 --output-root data/episodes/carla_fleet_overnight_01 --checkpoint models/carla_teacher_refined_cuda.pt --target-speed 8 --lane-guard --traffic-rule-guard --quiet
+py -3.12 main.py collect-fleet --backend carla --vehicles 3 --spawn-indices 1 8 15 --steps 360000 --output-root data/episodes/carla_fleet_overnight_01 --checkpoint models/teacherRefined_v1_cuda.pt --target-speed 8 --lane-guard --traffic-rule-guard --quiet
 scripts\collect_fleet_overnight_windows.bat
 ```
 
@@ -312,7 +322,7 @@ scripts\continue_quick_10car_iterations_windows.bat
 ```
 
 It automatically starts from the newest non-epoch
-`models/carla_quick_10car_5min_*_cuda.pt` checkpoint if one exists, then chains
+`models/quick10cars5min_v*_cuda.pt` checkpoint if one exists, then chains
 each new checkpoint into the next 10-car collection/training round. You can also
 pass an explicit starting checkpoint as the first argument.
 
@@ -358,7 +368,7 @@ This only collects short 2-car chunks overnight and does not train inside the
 loop. In the morning, train all completed chunks with:
 
 ```bash
-scripts\train_collected_chunks_windows.bat data\episodes\overnight_2car_collect_<timestamp> models\your_start.pt models\your_next.pt
+scripts\train_collected_chunks_windows.bat data\episodes\overnight2cars_v1 models\your_start.pt models\your_next.pt
 ```
 
 ### Command: `train`
@@ -378,9 +388,9 @@ Example commands:
 py -3.12 main.py train --dataset data/episodes/run_01 --output models/driving_model.pt
 py -3.12 main.py train --dataset data/episodes/run_01 data/episodes/run_02 --output models/driving_model.pt --epochs 8 --batch-size 16 --num-workers 6
 py -3.12 main.py train --dataset data/episodes/carla_fleet_overnight_01/vehicle_01 data/episodes/carla_fleet_overnight_01/vehicle_02 data/episodes/carla_fleet_overnight_01/vehicle_03 --output models/carla_fleet_teacher_cuda.pt --device cuda --epochs 4 --batch-size 128 --num-workers 8 --val-split 0.1 --log-interval 100
-py -3.12 main.py train --dataset data/raw/carla_weekend_combined/carla_weekend_combined --output models/carla_weekend_tar_index_cuda.pt --device cuda --epochs 4 --batch-size 256 --num-workers 8 --val-split 0.1 --log-interval 100
-py -3.12 main.py train --init-checkpoint models/carla_weekend_traffic_ped_1h_balanced_cuda.pt --dataset data/episodes/lane_correction_spawn1_speed4_01 data/episodes/lane_corrected_guided_test_01 --output models/carla_lane_finetuned_cuda.pt --device cuda --epochs 3 --batch-size 128 --num-workers 8 --learning-rate 0.0001 --val-split 0.1 --log-interval 100
-py -3.12 main.py train --init-checkpoint models/carla_lane_recovery_cuda.pt --dataset data/episodes/traffic_ped_guided_1h_01 data/episodes/lane_correction_spawn1_speed4_01 data/episodes/recovery_spawn1_right_yaw_01 data/episodes/recovery_spawn1_left_yaw_01 data/episodes/recovery_spawn1_right_counter_01 data/episodes/recovery_spawn1_left_counter_01 data/episodes/autopilot_teacher_spawn1_30min_01 --output models/carla_teacher_refined_cuda.pt --device cuda --epochs 4 --batch-size 128 --num-workers 8 --learning-rate 0.00005 --val-split 0.1 --log-interval 100
+py -3.12 main.py train --dataset data/raw/weekendCombined_v1/weekendCombined_v1 --output models/weekendTarIndex_v1_cuda.pt --device cuda --epochs 4 --batch-size 256 --num-workers 8 --val-split 0.1 --log-interval 100
+py -3.12 main.py train --init-checkpoint models/trafficPed1hrBalanced_v1_cuda.pt --dataset data/episodes/laneCorrectionSpawn1Speed4_v1 data/episodes/laneCorrectedGuided_v1 --output models/laneFinetuned_v1_cuda.pt --device cuda --epochs 3 --batch-size 128 --num-workers 8 --learning-rate 0.0001 --val-split 0.1 --log-interval 100
+py -3.12 main.py train --init-checkpoint models/laneRecovery_v1_cuda.pt --dataset data/episodes/trafficPed1hr_v1 data/episodes/laneCorrectionSpawn1Speed4_v1 data/episodes/recoveryRightYaw_v1 data/episodes/recoveryLeftYaw_v1 data/episodes/recoveryRightCounter_v1 data/episodes/recoveryLeftCounter_v1 data/episodes/teacherSpawn1_30min_v1 --output models/teacherRefined_v1_cuda.pt --device cuda --epochs 4 --batch-size 128 --num-workers 8 --learning-rate 0.00005 --val-split 0.1 --log-interval 100
 ```
 
 Output to check:
@@ -414,14 +424,14 @@ Example commands:
 ```bash
 py -3.12 main.py infer --backend mock --checkpoint models/driving_model.pt --steps 100
 py -3.12 main.py infer --backend carla --autopilot-model --steps 3000 --spawn-index 1 --target-speed 8 --spectator chase
-py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 300 --spawn-index 1 --target-speed 4 --spectator chase
-py -3.12 main.py infer --backend carla --checkpoint models/carla_lane_recovery_cuda.pt --steps 1000 --spawn-index 1 --target-speed 4 --spectator chase --lane-guard
-py -3.12 main.py infer --backend carla --checkpoint models/carla_lane_recovery_cuda.pt --steps 1000 --spawn-index 1 --target-speed 4 --spectator chase --lane-guard --traffic-rule-guard
-py -3.12 main.py infer --backend carla --checkpoint models/carla_teacher_refined_cuda.pt --steps 600 --spawn-index 1 --target-speed 4 --spectator chase --lane-guard --traffic-rule-guard
-py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 1000 --spawn-index 1 --target-speed 8 --spectator chase --autopilot-guide --output data/episodes/guided_spawn1_chase_01
-py -3.12 main.py infer --backend carla --checkpoint models/carla_teacher_refined_cuda.pt --steps 600 --spawn-index 1 --target-speed 4 --spectator chase --autopilot-guide --output data/episodes/test_refined_model_01
-py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 3000 --spawn-index 1 --target-speed 8 --spectator hood
-py -3.12 main.py infer --backend carla --checkpoint models/carla_lane_finetuned_cuda.pt --steps 4000 --spawn-index 1 --target-speed 4 --spectator chase --autopilot-guide --spawn-lateral-offset 1.0 --spawn-yaw-offset 8 --output data/episodes/recovery_right_yaw_01
+py -3.12 main.py infer --backend carla --checkpoint models/weekendTarIndex_v1_cuda.pt --steps 300 --spawn-index 1 --target-speed 4 --spectator chase
+py -3.12 main.py infer --backend carla --checkpoint models/laneRecovery_v1_cuda.pt --steps 1000 --spawn-index 1 --target-speed 4 --spectator chase --lane-guard
+py -3.12 main.py infer --backend carla --checkpoint models/laneRecovery_v1_cuda.pt --steps 1000 --spawn-index 1 --target-speed 4 --spectator chase --lane-guard --traffic-rule-guard
+py -3.12 main.py infer --backend carla --checkpoint models/teacherRefined_v1_cuda.pt --steps 600 --spawn-index 1 --target-speed 4 --spectator chase --lane-guard --traffic-rule-guard
+py -3.12 main.py infer --backend carla --checkpoint models/weekendTarIndex_v1_cuda.pt --steps 1000 --spawn-index 1 --target-speed 8 --spectator chase --autopilot-guide --output data/episodes/guidedSpawn1Chase_v1
+py -3.12 main.py infer --backend carla --checkpoint models/teacherRefined_v1_cuda.pt --steps 600 --spawn-index 1 --target-speed 4 --spectator chase --autopilot-guide --output data/episodes/testRefinedModel_v1
+py -3.12 main.py infer --backend carla --checkpoint models/weekendTarIndex_v1_cuda.pt --steps 3000 --spawn-index 1 --target-speed 8 --spectator hood
+py -3.12 main.py infer --backend carla --checkpoint models/laneFinetuned_v1_cuda.pt --steps 4000 --spawn-index 1 --target-speed 4 --spectator chase --autopilot-guide --spawn-lateral-offset 1.0 --spawn-yaw-offset 8 --output data/episodes/recoveryRightYaw_v1
 ```
 
 Output to check:
@@ -574,6 +584,16 @@ there is a specific reason. The preferred workflow is to keep the combined TAR,
 build/use the TAR image index, and train from the dataset root that contains
 `manifest.jsonl`, `metadata.json`, and `tar_image_index.jsonl`.
 
+On Windows, high-batch TAR training should start with `BATCH_SIZE=512` and
+`NUM_WORKERS=4`. If PyTorch reports `RuntimeError: Couldn't open shared file
+mapping` with error code `1455`, the GPU is not the problem; Windows ran out of
+shared mapping / paging-file headroom for DataLoader workers. Re-run with fewer
+workers first, then lower batch size if needed:
+
+```bat
+set LEARNING_RATE=0.00001&& set EPOCHS=2&& set BATCH_SIZE=512&& set NUM_WORKERS=4&& scripts\train_tar_shards_fast_windows.bat data\raw\10hr2cars_v1_tar_shards\10hr2cars_v1_datasets.txt models\10hr2cars_v1_cuda.pt models\10hr2cars_v2_cuda.pt
+```
+
 ## Using CARLA Traffic With This Project
 
 The safest way to add more realistic road behavior is:
@@ -601,7 +621,7 @@ prints `ModuleNotFoundError: No module named 'carla'`.
 Run your collection or inference command from this project folder:
 
 ```bash
-py -3.12 main.py infer --backend carla --checkpoint models/carla_weekend_tar_index_cuda.pt --steps 1000 --spawn-index 1 --target-speed 8 --spectator chase --autopilot-guide
+py -3.12 main.py infer --backend carla --checkpoint models/weekendTarIndex_v1_cuda.pt --steps 1000 --spawn-index 1 --target-speed 8 --spectator chase --autopilot-guide
 ```
 
 For a 30-sim-minute traffic and pedestrian data collection run:

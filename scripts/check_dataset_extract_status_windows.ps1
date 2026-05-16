@@ -1,6 +1,6 @@
 param(
     [string]$DestinationRoot = "",
-    [string]$DatasetName = "carla_weekend_combined",
+    [string]$DatasetName = "weekendCombined_v1",
     [int]$StartSegment = 30,
     [int]$EndSegment = 52,
     [int[]]$SkipSegments = @(38),

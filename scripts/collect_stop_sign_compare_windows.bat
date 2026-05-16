@@ -13,23 +13,32 @@ if "%VEHICLES%"=="" set "VEHICLES=2"
 if "%SPAWN_INDICES%"=="" set "SPAWN_INDICES=1 29"
 if "%STEPS%"=="" set "STEPS=10000"
 set "CURRENT_CHECKPOINT=%~1"
+set "ARG_RUN_NAME=%~2"
+if not "%ARG_RUN_NAME%"=="" set "RUN_NAME=%ARG_RUN_NAME%"
 
 if "%CURRENT_CHECKPOINT%"=="" (
     echo Missing model checkpoint.
-    echo Usage: scripts\collect_stop_sign_compare_windows.bat models\your_model.pt
+    echo Usage: scripts\collect_stop_sign_compare_windows.bat models\your_model.pt [run_name]
     exit /b 1
 )
 
 for /f %%I in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss"') do set "STAMP=%%I"
-set "RUN_ROOT=data\episodes\stop_sign_compare_%STAMP%"
+if "%RUN_NAME%"=="" set "RUN_NAME=stopSigns_%STAMP%"
+set "RUN_ROOT=data\episodes\%RUN_NAME%"
 set "LOG_DIR=logs"
-set "COLLECT_LOG=%LOG_DIR%\stop_sign_compare_%STAMP%_collect.log"
-set "SUMMARY_JSON=%LOG_DIR%\stop_sign_compare_%STAMP%_summary.json"
-set "EVENTS_CSV=%LOG_DIR%\stop_sign_compare_%STAMP%_events.csv"
+set "COLLECT_LOG=%LOG_DIR%\%RUN_NAME%_collect.log"
+set "SUMMARY_JSON=%LOG_DIR%\%RUN_NAME%_summary.json"
+set "EVENTS_CSV=%LOG_DIR%\%RUN_NAME%_events.csv"
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
+if exist "%RUN_ROOT%" (
+    echo Run root already exists: %RUN_ROOT%
+    echo Use a new version name, for example stopSigns_v2.
+    exit /b 1
+)
 
 echo Stop-sign comparison collection
 echo Checkpoint: %CURRENT_CHECKPOINT%
+echo Run name: %RUN_NAME%
 echo Output: %RUN_ROOT%
 echo Vehicles: %VEHICLES%
 echo Steps: %STEPS%

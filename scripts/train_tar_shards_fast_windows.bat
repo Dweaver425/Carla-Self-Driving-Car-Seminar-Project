@@ -11,7 +11,10 @@ set "OUTPUT_CHECKPOINT=%~3"
 if "%DEVICE%"=="" set "DEVICE=cuda"
 if "%EPOCHS%"=="" set "EPOCHS=2"
 if "%BATCH_SIZE%"=="" set "BATCH_SIZE=512"
-if "%NUM_WORKERS%"=="" set "NUM_WORKERS=10"
+rem Windows can fail with RuntimeError 1455 when too many workers create
+rem shared tensor mappings at a high batch size. Four keeps TAR training fast
+rem while avoiding the paging-file/shared-memory failure seen with 10 workers.
+if "%NUM_WORKERS%"=="" set "NUM_WORKERS=4"
 if "%LEARNING_RATE%"=="" set "LEARNING_RATE=0.00005"
 if "%VAL_SPLIT%"=="" set "VAL_SPLIT=0.1"
 if "%LOG_INTERVAL%"=="" set "LOG_INTERVAL=50"

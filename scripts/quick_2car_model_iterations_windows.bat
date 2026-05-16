@@ -5,7 +5,7 @@ rem Short teacher-student iteration preset.
 rem CARLA autopilot drives, the checkpoint predicts in shadow mode, then the
 rem checkpoint is fine-tuned from the collected CARLA labels.
 
-if "%RUN_LABEL%"=="" set "RUN_LABEL=quick_2car_iter"
+if "%RUN_LABEL%"=="" set "RUN_LABEL=quick2cars"
 if "%VEHICLES%"=="" set "VEHICLES=2"
 if "%SPAWN_INDICES%"=="" set "SPAWN_INDICES=1 29"
 if "%STEPS%"=="" set "STEPS=2500"

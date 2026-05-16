@@ -12,10 +12,10 @@ set "WALKERS=60"
 set "STEPS=36000"
 set "SPAWN_INDEX=1"
 set "TARGET_SPEED=8"
-set "CHECKPOINT=models\carla_weekend_tar_index_cuda.pt"
+set "CHECKPOINT=models\weekendTarIndex_v1_cuda.pt"
 
 for /f %%I in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss"') do set "STAMP=%%I"
-set "OUTPUT=data\episodes\traffic_ped_guided_30min_!STAMP!"
+set "OUTPUT=data\episodes\trafficPed30min_v1_!STAMP!"
 
 echo 30 simulated minutes = %STEPS% steps at fixed_delta_seconds 0.05.
 echo.

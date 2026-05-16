@@ -16,7 +16,7 @@ def main() -> None:
     parser.add_argument(
         "--dataset-root",
         type=Path,
-        default=Path("data/raw/carla_weekend_combined/carla_weekend_combined"),
+        default=Path("data/raw/weekendCombined_v1/weekendCombined_v1"),
     )
     args = parser.parse_args()
 

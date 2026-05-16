@@ -1,9 +1,10 @@
 @echo off
-if not "%CODEX_DELAYED_EXPANSION_READY%"=="1" (
-    set "CODEX_DELAYED_EXPANSION_READY=1"
-    cmd /v:on /c call "%~f0" %*
-    exit /b %ERRORLEVEL%
-)
+if "%CODEX_DELAYED_EXPANSION_READY%"=="1" goto delayed_ready
+set "CODEX_DELAYED_EXPANSION_READY=1"
+cmd /v:on /c call "%~f0" %*
+exit /b %ERRORLEVEL%
+
+:delayed_ready
 setlocal EnableExtensions EnableDelayedExpansion
 
 rem Overnight CARLA-teacher shadow comparison.
@@ -17,13 +18,14 @@ if "%VEHICLES%"=="" set "VEHICLES=2"
 if "%SPAWN_INDICES%"=="" set "SPAWN_INDICES=33 31"
 if "%STEPS%"=="" set "STEPS=2500"
 if "%DURATION_HOURS%"=="" set "DURATION_HOURS=10"
-if "%RUN_LABEL%"=="" set "RUN_LABEL=shadow_compare_2car"
-if "%LOG_LABEL%"=="" set "LOG_LABEL=shadow_compare_2car"
+if "%RUN_LABEL%"=="" set "RUN_LABEL=shadow2cars"
 set "CURRENT_CHECKPOINT=%~1"
+set "ARG_RUN_NAME=%~2"
+if not "%ARG_RUN_NAME%"=="" set "RUN_NAME=%ARG_RUN_NAME%"
 
 if "%CURRENT_CHECKPOINT%"=="" (
     echo Missing model checkpoint.
-    echo Usage: scripts\collect_2car_shadow_compare_overnight_windows.bat models\your_model.pt
+    echo Usage: scripts\collect_2car_shadow_compare_overnight_windows.bat models\your_model.pt [run_name]
     exit /b 1
 )
 
@@ -31,15 +33,23 @@ for /f %%I in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss
 for /f %%I in ('powershell -NoProfile -Command "[DateTimeOffset]::Now.AddHours(%DURATION_HOURS%).ToUnixTimeSeconds()"') do set "END_EPOCH=%%I"
 for /f "delims=" %%I in ('powershell -NoProfile -Command "(Get-Date).AddHours(%DURATION_HOURS%).ToString('yyyy-MM-dd HH:mm:ss')"') do set "END_LOCAL=%%I"
 
-set "RUN_ROOT=data\episodes\%RUN_LABEL%_%STAMP%"
+if "%RUN_NAME%"=="" set "RUN_NAME=%RUN_LABEL%_%STAMP%"
+if "%LOG_LABEL%"=="" set "LOG_LABEL=%RUN_NAME%"
+set "RUN_ROOT=data\episodes\%RUN_NAME%"
 set "LOG_DIR=logs"
-set "CONTROL_SUMMARY=%LOG_DIR%\%LOG_LABEL%_%STAMP%_control_summary.json"
-set "STOP_SUMMARY=%LOG_DIR%\%LOG_LABEL%_%STAMP%_stop_sign_summary.json"
-set "STOP_EVENTS=%LOG_DIR%\%LOG_LABEL%_%STAMP%_stop_sign_events.csv"
+set "CONTROL_SUMMARY=%LOG_DIR%\%LOG_LABEL%_control_summary.json"
+set "STOP_SUMMARY=%LOG_DIR%\%LOG_LABEL%_stop_sign_summary.json"
+set "STOP_EVENTS=%LOG_DIR%\%LOG_LABEL%_stop_sign_events.csv"
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
+if exist "%RUN_ROOT%" (
+    echo Run root already exists: %RUN_ROOT%
+    echo Use a new version name, for example 10hr2cars_v2.
+    exit /b 1
+)
 
 echo Overnight shadow comparison
 echo Checkpoint: %CURRENT_CHECKPOINT%
+echo Run name: %RUN_NAME%
 echo Duration hours: %DURATION_HOURS%
 echo Ends around: %END_LOCAL%
 echo Vehicles: %VEHICLES%
@@ -57,10 +67,10 @@ for /l %%I in (1,1,9999) do (
 
     echo.
     echo [chunk %%I] Collecting %RUN_ROOT%\chunk_%%I
-    call py -3.12 main.py collect-fleet --backend carla --host %HOST% --port %PORT% --tm-port %TM_PORT% --vehicles %VEHICLES% --spawn-indices %SPAWN_INDICES% --steps %STEPS% --output-root "%RUN_ROOT%\chunk_%%I" --checkpoint "%CURRENT_CHECKPOINT%" --target-speed 8 --quiet > "%LOG_DIR%\%LOG_LABEL%_%STAMP%_chunk_%%I_collect.log" 2>&1
+    call py -3.12 main.py collect-fleet --backend carla --host %HOST% --port %PORT% --tm-port %TM_PORT% --vehicles %VEHICLES% --spawn-indices %SPAWN_INDICES% --steps %STEPS% --output-root "%RUN_ROOT%\chunk_%%I" --checkpoint "%CURRENT_CHECKPOINT%" --target-speed 8 --quiet > "%LOG_DIR%\%LOG_LABEL%_chunk_%%I_collect.log" 2>&1
     if errorlevel 1 (
         echo Collection failed during chunk %%I.
-        echo See log: %LOG_DIR%\%LOG_LABEL%_%STAMP%_chunk_%%I_collect.log
+        echo See log: %LOG_DIR%\%LOG_LABEL%_chunk_%%I_collect.log
         echo Completed chunks before this one can still be analyzed or trained.
         exit /b 1
     )

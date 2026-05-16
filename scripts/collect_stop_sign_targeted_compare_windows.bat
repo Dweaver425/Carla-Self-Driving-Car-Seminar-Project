@@ -12,10 +12,12 @@ if "%STEPS%"=="" set "STEPS=15000"
 if "%STOP_LOOKAHEAD_M%"=="" set "STOP_LOOKAHEAD_M=160"
 if "%STOP_NEAR_M%"=="" set "STOP_NEAR_M=12"
 set "CURRENT_CHECKPOINT=%~1"
+set "ARG_RUN_NAME=%~2"
+if not "%ARG_RUN_NAME%"=="" set "RUN_NAME=%ARG_RUN_NAME%"
 
 if "%CURRENT_CHECKPOINT%"=="" (
     echo Missing model checkpoint.
-    echo Usage: scripts\collect_stop_sign_targeted_compare_windows.bat models\your_model.pt
+    echo Usage: scripts\collect_stop_sign_targeted_compare_windows.bat models\your_model.pt [run_name]
     exit /b 1
 )
 
@@ -31,5 +33,5 @@ if "%SPAWN_INDICES%"=="" (
 
 echo Spawn indices: %SPAWN_INDICES%
 echo.
-call scripts\collect_stop_sign_compare_windows.bat "%CURRENT_CHECKPOINT%"
+call scripts\collect_stop_sign_compare_windows.bat "%CURRENT_CHECKPOINT%" "%RUN_NAME%"
 exit /b %ERRORLEVEL%

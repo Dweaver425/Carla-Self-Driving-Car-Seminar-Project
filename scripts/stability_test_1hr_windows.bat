@@ -4,7 +4,7 @@ setlocal
 rem About a 1-hour stability test on a typical desktop.
 rem Lower heat than the 10-car stress loop, but still useful for model improvement.
 
-set "RUN_LABEL=stable_1hr"
+set "RUN_LABEL=stable1hr"
 set "VEHICLES=6"
 set "SPAWN_INDICES=1 8 15 22 29 36"
 set "STEPS=6000"

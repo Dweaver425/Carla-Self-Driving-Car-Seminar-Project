@@ -4,7 +4,7 @@ setlocal
 rem Lowest-risk 1-hour-ish preset.
 rem Use this if the 6-car stable preset crashes or runs too hot.
 
-set "RUN_LABEL=ultra_1hr"
+set "RUN_LABEL=ultra1hr"
 set "VEHICLES=3"
 set "SPAWN_INDICES=1 15 29"
 set "STEPS=3000"

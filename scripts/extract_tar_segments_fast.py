@@ -198,7 +198,7 @@ def main() -> int:
     )
     parser.add_argument("--tar", required=True, type=Path)
     parser.add_argument("--dest", required=True, type=Path)
-    parser.add_argument("--dataset", default="carla_weekend_combined")
+    parser.add_argument("--dataset", default="weekendCombined_v1")
     parser.add_argument("--start-segment", type=int, default=31)
     parser.add_argument("--end-segment", type=int, default=52)
     parser.add_argument("--skip-segment", action="append", type=int, default=[38])

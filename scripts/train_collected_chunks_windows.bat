@@ -1,9 +1,10 @@
 @echo off
-if not "%CODEX_DELAYED_EXPANSION_READY%"=="1" (
-    set "CODEX_DELAYED_EXPANSION_READY=1"
-    cmd /v:on /c call "%~f0" %*
-    exit /b %ERRORLEVEL%
-)
+if "%CODEX_DELAYED_EXPANSION_READY%"=="1" goto delayed_ready
+set "CODEX_DELAYED_EXPANSION_READY=1"
+cmd /v:on /c call "%~f0" %*
+exit /b %ERRORLEVEL%
+
+:delayed_ready
 setlocal EnableExtensions EnableDelayedExpansion
 
 rem Trains one checkpoint from all completed chunk_*/vehicle_* folders under a run root.

@@ -88,10 +88,10 @@ def summarize(values: list[float]) -> dict[str, float]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Compare checkpoint predictions to dataset labels.")
-    parser.add_argument("--checkpoint", default="models/carla_weekend_tar_index_cuda.pt")
+    parser.add_argument("--checkpoint", default="models/weekendTarIndex_v1_cuda.pt")
     parser.add_argument(
         "--dataset-root",
-        default="data/raw/carla_weekend_combined/carla_weekend_combined",
+        default="data/raw/weekendCombined_v1/weekendCombined_v1",
         type=Path,
     )
     parser.add_argument("--samples", type=int, default=1024)

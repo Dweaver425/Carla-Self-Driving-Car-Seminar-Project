@@ -1,6 +1,6 @@
 param(
     [string]$DestinationRoot = "",
-    [string]$DatasetName = "carla_weekend_combined",
+    [string]$DatasetName = "weekendCombined_v1",
     [int]$TarPid = 0,
     [int]$SampleSeconds = 60,
     [string]$StatePath = ""

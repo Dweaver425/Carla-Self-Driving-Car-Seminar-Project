@@ -3,14 +3,14 @@ setlocal
 
 rem Package a chunk_* collection run into one TAR-backed dataset.
 rem Usage:
-rem   scripts\package_collected_chunks_tar_windows.bat data\episodes\model_shadow_2car_10hr_YYYYMMDD_HHMMSS
+rem   scripts\package_collected_chunks_tar_windows.bat data\episodes\10hr2cars_v1
 
 set "RUN_ROOT=%~1"
 set "DATASET_NAME=%~2"
 
 if "%RUN_ROOT%"=="" (
     echo Missing run root.
-    echo Usage: scripts\package_collected_chunks_tar_windows.bat data\episodes\model_shadow_2car_10hr_YYYYMMDD_HHMMSS
+    echo Usage: scripts\package_collected_chunks_tar_windows.bat data\episodes\10hr2cars_v1
     exit /b 1
 )
 if "%DATASET_NAME%"=="" set "DATASET_NAME=%~n1"
@@ -37,5 +37,5 @@ echo TAR-backed dataset is ready:
 echo %DATASET_ROOT%
 echo.
 echo Train with:
-echo scripts\train_tar_dataset_fast_windows.bat "%DATASET_ROOT%" models\quick_2car_iter_20260515_024940_iter_1_cuda.pt models\%DATASET_NAME%_tar_cuda.pt
+echo scripts\train_tar_dataset_fast_windows.bat "%DATASET_ROOT%" models\quick2cars_v1_chunk_1_cuda.pt models\%DATASET_NAME%_tar_cuda.pt
 exit /b 0

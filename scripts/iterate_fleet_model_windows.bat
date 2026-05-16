@@ -1,9 +1,10 @@
 @echo off
-if not "%CODEX_DELAYED_EXPANSION_READY%"=="1" (
-    set "CODEX_DELAYED_EXPANSION_READY=1"
-    cmd /v:on /c call "%~f0" %*
-    exit /b %ERRORLEVEL%
-)
+if "%CODEX_DELAYED_EXPANSION_READY%"=="1" goto delayed_ready
+set "CODEX_DELAYED_EXPANSION_READY=1"
+cmd /v:on /c call "%~f0" %*
+exit /b %ERRORLEVEL%
+
+:delayed_ready
 setlocal EnableExtensions EnableDelayedExpansion
 
 rem Iteratively improves the current model:
@@ -19,10 +20,12 @@ set "SPAWN_INDICES=1 8 15"
 set "ITERATIONS=3"
 set "STEPS_PER_ITERATION=120000"
 set "CURRENT_CHECKPOINT=%~1"
+set "ARG_RUN_NAME=%~2"
+if not "%ARG_RUN_NAME%"=="" set "RUN_NAME=%ARG_RUN_NAME%"
 if "%CURRENT_CHECKPOINT%"=="" (
-    for /f "delims=" %%C in ('powershell -NoProfile -Command "$m=Get-ChildItem -Path models -File | Where-Object { ($_.Name -like 'carla_quick*_cuda.pt' -or $_.Name -like 'stable_*_cuda.pt' -or $_.Name -like 'ultra_*_cuda.pt') -and $_.Name -notlike '*_epoch_*' } | Sort-Object LastWriteTime -Descending | Select-Object -First 1; if ($m) { $m.FullName }"') do set "CURRENT_CHECKPOINT=%%C"
+    for /f "delims=" %%C in ('powershell -NoProfile -Command "$patterns='10hr2cars*_cuda.pt','5hr2cars*_cuda.pt','shadow2cars*_cuda.pt','overnight2cars*_cuda.pt','quick10cars*_cuda.pt','quick2cars*_cuda.pt','stable1hr*_cuda.pt','ultra1hr*_cuda.pt','ultraOvernight*_cuda.pt','stopSigns*_cuda.pt','teacherRefined*_cuda.pt'; $m=Get-ChildItem -Path models -File | Where-Object { $n=$_.Name; ($patterns | Where-Object { $n -like $_ }) -and $n -notlike '*_epoch_*' } | Sort-Object LastWriteTime -Descending | Select-Object -First 1; if ($m) { $m.FullName }"') do set "CURRENT_CHECKPOINT=%%C"
 )
-if "%CURRENT_CHECKPOINT%"=="" set "CURRENT_CHECKPOINT=models\carla_teacher_refined_cuda.pt"
+if "%CURRENT_CHECKPOINT%"=="" set "CURRENT_CHECKPOINT=models\teacherRefined_v1_cuda.pt"
 set "DEVICE=cuda"
 set "EPOCHS=3"
 set "BATCH_SIZE=128"
@@ -32,7 +35,13 @@ set "VAL_SPLIT=0.1"
 set "LOG_INTERVAL=100"
 
 for /f %%I in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss"') do set "STAMP=%%I"
-set "RUN_ROOT=data\episodes\iterative_fleet_!STAMP!"
+if "%RUN_NAME%"=="" set "RUN_NAME=iterativeFleet_!STAMP!"
+set "RUN_ROOT=data\episodes\%RUN_NAME%"
+if exist "%RUN_ROOT%" (
+    echo Run root already exists: %RUN_ROOT%
+    echo Use a new version name, for example iterativeFleet_v2.
+    exit /b 1
+)
 
 echo Iterative guided fleet improvement
 echo Starting checkpoint: %CURRENT_CHECKPOINT%
@@ -48,14 +57,14 @@ echo Press any key here to begin.
 pause >nul
 
 for /l %%I in (1,1,%ITERATIONS%) do (
-    set "ITER_OUT=!RUN_ROOT!\iteration_%%I"
-    set "NEXT_CHECKPOINT=models\carla_iterative_fleet_%%I_cuda.pt"
+    set "ITER_OUT=!RUN_ROOT!\chunk_%%I"
+    set "NEXT_CHECKPOINT=models\%RUN_NAME%_chunk_%%I_cuda.pt"
 
     echo.
     echo [%%I/%ITERATIONS%] Collecting guided fleet data with !CURRENT_CHECKPOINT!
     py -3.12 main.py collect-fleet --backend carla --host %HOST% --port %PORT% --tm-port %TM_PORT% --vehicles %VEHICLES% --spawn-indices %SPAWN_INDICES% --steps %STEPS_PER_ITERATION% --output-root "!ITER_OUT!" --checkpoint "!CURRENT_CHECKPOINT!" --target-speed 8 --lane-guard --traffic-rule-guard --quiet
     if errorlevel 1 (
-        echo Collection failed during iteration %%I.
+        echo Collection failed during chunk %%I.
         exit /b 1
     )
 
@@ -63,7 +72,7 @@ for /l %%I in (1,1,%ITERATIONS%) do (
     echo [%%I/%ITERATIONS%] Fine-tuning to !NEXT_CHECKPOINT!
     py -3.12 main.py train --init-checkpoint "!CURRENT_CHECKPOINT!" --dataset "!ITER_OUT!\vehicle_01" "!ITER_OUT!\vehicle_02" "!ITER_OUT!\vehicle_03" --output "!NEXT_CHECKPOINT!" --device %DEVICE% --epochs %EPOCHS% --batch-size %BATCH_SIZE% --num-workers %NUM_WORKERS% --learning-rate %LEARNING_RATE% --val-split %VAL_SPLIT% --log-interval %LOG_INTERVAL%
     if errorlevel 1 (
-        echo Training failed during iteration %%I.
+        echo Training failed during chunk %%I.
         exit /b 1
     )
 

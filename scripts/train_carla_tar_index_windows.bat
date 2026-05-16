@@ -4,8 +4,8 @@ setlocal
 rem Train directly from the TAR image index. This avoids extracting millions of
 rem tiny PNG files into the Windows filesystem.
 
-set "DATASET=data\raw\carla_weekend_combined\carla_weekend_combined"
-set "OUTPUT=models\carla_weekend_tar_index_cuda.pt"
+set "DATASET=data\raw\weekendCombined_v1\weekendCombined_v1"
+set "OUTPUT=models\weekendTarIndex_v1_cuda.pt"
 set "DEVICE=cuda"
 set "EPOCHS=4"
 set "BATCH_SIZE=256"

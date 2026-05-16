@@ -60,7 +60,7 @@ def main() -> int:
     )
     parser.add_argument("--tar", required=True, type=Path)
     parser.add_argument("--dataset-root", required=True, type=Path)
-    parser.add_argument("--dataset-name", default="carla_weekend_combined")
+    parser.add_argument("--dataset-name", default="weekendCombined_v1")
     parser.add_argument("--index-name", default="tar_image_index.jsonl")
     parser.add_argument("--metadata-name", default="tar_image_index_metadata.json")
     parser.add_argument("--state-name", default="tar_image_index_state.json")

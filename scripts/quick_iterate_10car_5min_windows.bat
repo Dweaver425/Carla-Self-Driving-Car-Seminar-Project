@@ -1,9 +1,10 @@
 @echo off
-if not "%CODEX_DELAYED_EXPANSION_READY%"=="1" (
-    set "CODEX_DELAYED_EXPANSION_READY=1"
-    cmd /v:on /c call "%~f0" %*
-    exit /b %ERRORLEVEL%
-)
+if "%CODEX_DELAYED_EXPANSION_READY%"=="1" goto delayed_ready
+set "CODEX_DELAYED_EXPANSION_READY=1"
+cmd /v:on /c call "%~f0" %*
+exit /b %ERRORLEVEL%
+
+:delayed_ready
 setlocal EnableExtensions EnableDelayedExpansion
 
 rem Quick iteration run:
@@ -19,10 +20,12 @@ set "VEHICLES=10"
 set "STEPS=6000"
 set "SPAWN_INDICES=1 8 15 22 29 36 43 50 57 64"
 set "CURRENT_CHECKPOINT=%~1"
+set "ARG_RUN_NAME=%~2"
+if not "%ARG_RUN_NAME%"=="" set "RUN_NAME=%ARG_RUN_NAME%"
 if "%CURRENT_CHECKPOINT%"=="" (
-    for /f "delims=" %%C in ('powershell -NoProfile -Command "$m=Get-ChildItem -Path models -File | Where-Object { ($_.Name -like 'carla_quick*_cuda.pt' -or $_.Name -like 'stable_*_cuda.pt' -or $_.Name -like 'ultra_*_cuda.pt') -and $_.Name -notlike '*_epoch_*' } | Sort-Object LastWriteTime -Descending | Select-Object -First 1; if ($m) { $m.FullName }"') do set "CURRENT_CHECKPOINT=%%C"
+    for /f "delims=" %%C in ('powershell -NoProfile -Command "$patterns='10hr2cars*_cuda.pt','5hr2cars*_cuda.pt','shadow2cars*_cuda.pt','overnight2cars*_cuda.pt','quick10cars*_cuda.pt','quick2cars*_cuda.pt','stable1hr*_cuda.pt','ultra1hr*_cuda.pt','ultraOvernight*_cuda.pt','stopSigns*_cuda.pt','teacherRefined*_cuda.pt'; $m=Get-ChildItem -Path models -File | Where-Object { $n=$_.Name; ($patterns | Where-Object { $n -like $_ }) -and $n -notlike '*_epoch_*' } | Sort-Object LastWriteTime -Descending | Select-Object -First 1; if ($m) { $m.FullName }"') do set "CURRENT_CHECKPOINT=%%C"
 )
-if "%CURRENT_CHECKPOINT%"=="" set "CURRENT_CHECKPOINT=models\carla_teacher_refined_cuda.pt"
+if "%CURRENT_CHECKPOINT%"=="" set "CURRENT_CHECKPOINT=models\teacherRefined_v1_cuda.pt"
 set "DEVICE=cuda"
 set "EPOCHS=2"
 set "BATCH_SIZE=128"
@@ -32,8 +35,14 @@ set "VAL_SPLIT=0.1"
 set "LOG_INTERVAL=100"
 
 for /f %%I in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss"') do set "STAMP=%%I"
-set "OUTPUT_ROOT=data\episodes\quick_10car_5min_!STAMP!"
-set "NEXT_CHECKPOINT=models\carla_quick_10car_5min_!STAMP!_cuda.pt"
+if "%RUN_NAME%"=="" set "RUN_NAME=quick10cars5min_!STAMP!"
+set "OUTPUT_ROOT=data\episodes\%RUN_NAME%"
+set "NEXT_CHECKPOINT=models\%RUN_NAME%_cuda.pt"
+if exist "%OUTPUT_ROOT%" (
+    echo Run root already exists: %OUTPUT_ROOT%
+    echo Use a new version name, for example quick10cars5min_v2.
+    exit /b 1
+)
 
 echo Quick 10-car model comparison and fine-tune
 echo Current model: %CURRENT_CHECKPOINT%

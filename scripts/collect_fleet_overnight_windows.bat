@@ -10,7 +10,7 @@ set "TM_PORT=8000"
 set "VEHICLES=3"
 set "STEPS=360000"
 set "SPAWN_INDICES=1 8 15"
-set "CHECKPOINT=models\carla_teacher_refined_cuda.pt"
+set "CHECKPOINT=models\teacherRefined_v1_cuda.pt"
 
 for /f %%I in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss"') do set "STAMP=%%I"
 set "OUTPUT_ROOT=data\episodes\carla_fleet_overnight_!STAMP!"

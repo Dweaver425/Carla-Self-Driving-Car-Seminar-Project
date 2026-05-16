@@ -4,7 +4,7 @@ setlocal
 rem Lowest-risk overnight preset.
 rem Smaller chunks mean less heat and easier recovery after a crash.
 
-set "RUN_LABEL=ultra_overnight"
+set "RUN_LABEL=ultraOvernight"
 set "VEHICLES=2"
 set "SPAWN_INDICES=1 29"
 set "STEPS=2500"

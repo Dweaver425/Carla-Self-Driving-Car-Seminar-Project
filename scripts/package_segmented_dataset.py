@@ -108,11 +108,11 @@ def parse_args() -> argparse.Namespace:
         "--output",
         required=True,
         type=Path,
-        help="Output TAR path. Example: E:\\carla_weekend_combined.tar",
+        help="Output TAR path. Example: E:\\weekendCombined_v1.tar",
     )
     parser.add_argument(
         "--dataset-name",
-        default="carla_weekend_combined",
+        default="weekendCombined_v1",
         help="Top-level folder name inside the TAR archive.",
     )
     parser.add_argument(
