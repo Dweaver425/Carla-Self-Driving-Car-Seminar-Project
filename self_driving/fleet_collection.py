@@ -355,36 +355,116 @@ class FleetCarlaCollector:
         }
 
     def _traffic_light_details(self, vehicle: Any, transform: Any) -> dict[str, Any] | None:
+        ego_waypoint = None
+        with suppress(Exception):
+            ego_waypoint = self._world.get_map().get_waypoint(
+                transform.location,
+                project_to_road=True,
+                lane_type=self._carla.LaneType.Driving,
+            )
+
         with suppress(Exception):
             if vehicle.is_at_traffic_light():
                 traffic_light = vehicle.get_traffic_light()
                 if traffic_light is not None:
-                    return self._traffic_actor_details(
+                    details = self._traffic_actor_details(
                         traffic_light,
                         transform,
                         state=str(vehicle.get_traffic_light_state()).split(".")[-1],
                     )
+                    if details is not None:
+                        details["source"] = "vehicle_traffic_light"
+                    return details
 
         best: dict[str, Any] | None = None
         for traffic_light in self._traffic_light_actors:
             with suppress(Exception):
                 state = str(traffic_light.state).split(".")[-1]
-                if state not in {"Red", "Yellow"}:
+                if state not in {"Red", "Yellow", "Green"}:
                     continue
                 details = self._traffic_actor_details(traffic_light, transform, state=state)
                 if details is None:
                     continue
-                if (
-                    0.0 <= details["forward_distance_m"] <= 14.0
-                    and abs(details["lateral_distance_m"]) <= 5.0
-                    and abs(details["angle_deg"]) <= 60.0
-                    and (
-                        best is None
-                        or details["forward_distance_m"] < best["forward_distance_m"]
-                    )
-                ):
+                if not self._traffic_light_geometry_matches_ego_lane(details, ego_waypoint):
+                    continue
+                if not self._traffic_light_candidate_in_range(details):
+                    continue
+                details["source"] = "fallback_traffic_light_scan"
+                if best is None or self._traffic_light_sort_key(details) < self._traffic_light_sort_key(best):
                     best = details
         return best
+
+    def _traffic_light_geometry_matches_ego_lane(
+        self,
+        details: dict[str, Any],
+        ego_waypoint: Any | None,
+    ) -> bool:
+        if ego_waypoint is not None and self._traffic_light_trigger_intersects_ego_lane(
+            details,
+            ego_waypoint,
+        ):
+            light_road_id = details.get("road_id")
+            light_lane_id = details.get("lane_id")
+            if (
+                light_road_id is not None
+                and int(light_road_id) == int(ego_waypoint.road_id)
+                and light_lane_id is not None
+            ):
+                return int(light_lane_id) == int(ego_waypoint.lane_id)
+            return True
+
+        if ego_waypoint is not None and self._traffic_light_lane_matches_ego_lane(
+            details,
+            ego_waypoint,
+        ):
+            return abs(details["lateral_distance_m"]) <= 6.0 and abs(details["angle_deg"]) <= 70.0
+
+        return abs(details["lateral_distance_m"]) <= 3.4 and abs(details["angle_deg"]) <= 45.0
+
+    def _traffic_light_lane_matches_ego_lane(self, details: dict[str, Any], ego_waypoint: Any) -> bool:
+        light_road_id = details.get("road_id")
+        light_lane_id = details.get("lane_id")
+        if light_road_id is None or light_lane_id is None:
+            return False
+        return (
+            int(light_road_id) == int(ego_waypoint.road_id)
+            and int(light_lane_id) == int(ego_waypoint.lane_id)
+        )
+
+    def _traffic_light_trigger_intersects_ego_lane(
+        self,
+        details: dict[str, Any],
+        ego_waypoint: Any,
+    ) -> bool:
+        min_forward = details.get("trigger_min_forward_m")
+        max_forward = details.get("trigger_max_forward_m")
+        min_abs_lateral = details.get("trigger_min_abs_lateral_m")
+        if min_forward is None or max_forward is None or min_abs_lateral is None:
+            return False
+
+        lane_width = float(getattr(ego_waypoint, "lane_width", 3.5) or 3.5)
+        lane_corridor_half_width = (lane_width * 0.5) + 0.45
+        return (
+            float(max_forward) >= -2.0
+            and float(min_forward) <= 24.0
+            and float(min_abs_lateral) <= lane_corridor_half_width
+        )
+
+    def _traffic_light_candidate_in_range(self, details: dict[str, Any]) -> bool:
+        min_forward = details.get("trigger_min_forward_m")
+        max_forward = details.get("trigger_max_forward_m")
+        if min_forward is not None and max_forward is not None:
+            return float(max_forward) >= -2.0 and float(min_forward) <= 24.0
+        return (
+            0.0 <= details["forward_distance_m"] <= 14.0
+            and abs(details["lateral_distance_m"]) <= 5.0
+            and abs(details["angle_deg"]) <= 60.0
+        )
+
+    def _traffic_light_sort_key(self, details: dict[str, Any]) -> tuple[float, float, float]:
+        forward = float(details.get("trigger_min_forward_m", details["forward_distance_m"]))
+        lateral = float(details.get("trigger_min_abs_lateral_m", abs(details["lateral_distance_m"])))
+        return (max(forward, -2.0), lateral, float(details["distance_m"]))
 
     def _stop_sign_details(self, transform: Any) -> dict[str, Any] | None:
         ego_waypoint = None

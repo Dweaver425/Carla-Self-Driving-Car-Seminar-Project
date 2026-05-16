@@ -647,6 +647,9 @@ Use `--traffic-rule-guard` when you want CARLA to assist braking for
 red/yellow lights and stop signs. If the car settles too early at a red light,
 the guard can creep closer to the trigger line, then release leftover braking
 when the light turns green.
+If the visible light disagrees with the logged state, check
+`traffic_rule_details.traffic_light.source`, `id`, `road_id`, and `lane_id` to
+see which CARLA actor was selected.
 
 ### Start the fleet server
 
