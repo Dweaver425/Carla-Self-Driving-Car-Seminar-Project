@@ -36,7 +36,13 @@ sys.modules.setdefault("torch", torch_stub)
 sys.modules.setdefault("torch.nn", nn_stub)
 
 from self_driving.inference import (  # noqa: E402
+    LANE_GUARD_JUNCTION_SMOOTHING_BLEND,
     LANE_GUARD_JUNCTION_MAX_DELTA,
+    LANE_GUARD_NORMAL_MAX_DELTA,
+    LANE_GUARD_RECOVERY_MAX_DELTA,
+    LANE_GUARD_RECOVERY_SMOOTHING_BLEND,
+    LANE_GUARD_SMOOTHING_BLEND,
+    LANE_GUARD_STEERING_REVERSAL_SCALE,
     ModelController,
 )
 from self_driving.types import ControlCommand, DrivingObservation, Pose2D, VehicleState  # noqa: E402
@@ -131,7 +137,10 @@ class LaneGuardTests(unittest.TestCase):
 
         steering = controller._smooth_guarded_steering(0.2, observation)
 
-        self.assertEqual(steering, LANE_GUARD_JUNCTION_MAX_DELTA)
+        self.assertAlmostEqual(
+            steering,
+            LANE_GUARD_JUNCTION_MAX_DELTA * LANE_GUARD_JUNCTION_SMOOTHING_BLEND,
+        )
 
     def test_large_lane_error_overrides_bad_model_turn_and_slows_down(self) -> None:
         controller = make_controller()
@@ -205,7 +214,28 @@ class LaneGuardTests(unittest.TestCase):
 
         steering = controller._smooth_guarded_steering(-0.5, observation)
 
-        self.assertEqual(steering, -0.13)
+        self.assertAlmostEqual(
+            steering,
+            -(LANE_GUARD_RECOVERY_MAX_DELTA * LANE_GUARD_RECOVERY_SMOOTHING_BLEND),
+        )
+
+    def test_steering_reversal_is_damped_to_reduce_zigzag(self) -> None:
+        controller = make_controller()
+        controller._last_steering = 0.3
+        observation = make_observation(
+            lane_offset_m=0.5,
+            heading_error_deg=5.0,
+            is_junction=False,
+        )
+
+        steering = controller._smooth_guarded_steering(-0.4, observation)
+
+        expected_delta = (
+            LANE_GUARD_NORMAL_MAX_DELTA
+            * LANE_GUARD_STEERING_REVERSAL_SCALE
+            * LANE_GUARD_SMOOTHING_BLEND
+        )
+        self.assertAlmostEqual(steering, 0.3 - expected_delta)
 
 
 if __name__ == "__main__":

@@ -31,6 +31,16 @@ LANE_GUARD_JUNCTION_GAIN_SCALE = 0.6
 LANE_GUARD_JUNCTION_DEADBAND_OFFSET_M = 0.45
 LANE_GUARD_JUNCTION_DEADBAND_HEADING_DEG = 6.0
 LANE_GUARD_JUNCTION_MAX_DELTA = 0.04
+LANE_GUARD_NORMAL_MAX_DELTA = 0.055
+LANE_GUARD_RECOVERY_MAX_DELTA = 0.10
+LANE_GUARD_CRITICAL_MAX_DELTA = 0.14
+LANE_GUARD_SMOOTHING_BLEND = 0.65
+LANE_GUARD_JUNCTION_SMOOTHING_BLEND = 0.55
+LANE_GUARD_RECOVERY_SMOOTHING_BLEND = 0.80
+LANE_GUARD_CRITICAL_SMOOTHING_BLEND = 0.85
+LANE_GUARD_STEERING_REVERSAL_SCALE = 0.65
+LANE_GUARD_HIGH_SPEED_SMOOTHING_MPS = 6.0
+LANE_GUARD_HIGH_SPEED_DELTA_SCALE = 0.75
 LANE_GUARD_RECOVERY_OFFSET_M = 0.75
 LANE_GUARD_RECOVERY_HEADING_DEG = 10.0
 LANE_GUARD_CRITICAL_OFFSET_M = 1.15
@@ -409,7 +419,7 @@ class ModelController:
             if observation.lane_offset_m is not None
             else 0.0
         )
-        # Let urgent corrections move faster, but damp small frame-to-frame jitter.
+        # Let urgent corrections move faster, but damp frame-to-frame hunting.
         critical_recovery = (
             abs_lane_offset > LANE_GUARD_CRITICAL_OFFSET_M
             or abs_heading_error > LANE_GUARD_CRITICAL_HEADING_DEG
@@ -419,16 +429,31 @@ class ModelController:
             or abs_heading_error > LANE_GUARD_RECOVERY_HEADING_DEG
         )
         if critical_recovery:
-            max_delta = 0.18
+            max_delta = LANE_GUARD_CRITICAL_MAX_DELTA
+            smoothing_blend = LANE_GUARD_CRITICAL_SMOOTHING_BLEND
         elif recovery_needed:
-            max_delta = 0.13
+            max_delta = LANE_GUARD_RECOVERY_MAX_DELTA
+            smoothing_blend = LANE_GUARD_RECOVERY_SMOOTHING_BLEND
         elif self._is_junction(observation):
             max_delta = LANE_GUARD_JUNCTION_MAX_DELTA
+            smoothing_blend = LANE_GUARD_JUNCTION_SMOOTHING_BLEND
         else:
-            max_delta = 0.06
+            max_delta = LANE_GUARD_NORMAL_MAX_DELTA
+            smoothing_blend = LANE_GUARD_SMOOTHING_BLEND
+
+        if observation.state.speed_mps > LANE_GUARD_HIGH_SPEED_SMOOTHING_MPS:
+            max_delta *= LANE_GUARD_HIGH_SPEED_DELTA_SCALE
+        if self._last_steering * steering < 0.0 and not critical_recovery:
+            max_delta *= LANE_GUARD_STEERING_REVERSAL_SCALE
 
         delta = clamp(steering - self._last_steering, -max_delta, max_delta)
-        smoothed = clamp(self._last_steering + delta, -1.0, 1.0)
+        rate_limited = self._last_steering + delta
+        smoothed = clamp(
+            ((1.0 - smoothing_blend) * self._last_steering)
+            + (smoothing_blend * rate_limited),
+            -1.0,
+            1.0,
+        )
         self._last_steering = smoothed
         return smoothed
 

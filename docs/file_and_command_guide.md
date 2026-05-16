@@ -655,10 +655,10 @@ Obstacle braking ignores `traffic.*` actors such as traffic lights, and
 fallback red-light selection is stricter once the car is already inside a
 junction.
 Use `--lane-guard` to steady the live demo. It dampens small steering
-corrections inside junctions, but applies stronger recovery steering and slows
-the car when lane offset or heading error gets large. If recovery braking
-nearly stops the car, the guard crawls slowly so the steering can pull it back
-into the lane.
+corrections inside junctions, rate-limits steering changes to reduce
+zigzagging, and applies stronger recovery steering while slowing the car when
+lane offset or heading error gets large. If recovery braking nearly stops the
+car, the guard crawls slowly so the steering can pull it back into the lane.
 If the visible light or stop sign disagrees with the logged state, check
 `traffic_rule_details.traffic_light.source` or
 `traffic_rule_details.stop_sign.source`, plus `id`, `road_id`, and `lane_id`,

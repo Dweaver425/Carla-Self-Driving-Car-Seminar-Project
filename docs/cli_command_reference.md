@@ -446,7 +446,8 @@ model's predictions were from CARLA autopilot's applied controls.
 Use `--lane-guard` when you want a stable CARLA demonstration with a trained
 checkpoint plus a light map-based lane correction. The correction is damped
 inside junctions to avoid twitching when CARLA waypoints change through an
-intersection, but large lane or heading errors trigger stronger recovery
+intersection, and steering changes are rate-limited to reduce left-right
+zigzagging. Large lane or heading errors still trigger stronger recovery
 steering and speed reduction. If recovery braking nearly stops the car, the
 guard crawls slowly so the steering can pull it back into the lane. Leave it
 off when you want a pure model-only evaluation.
