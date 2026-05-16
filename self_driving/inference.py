@@ -34,6 +34,9 @@ LANE_GUARD_RECOVERY_OFFSET_M = 0.75
 LANE_GUARD_RECOVERY_HEADING_DEG = 10.0
 LANE_GUARD_CRITICAL_OFFSET_M = 1.15
 LANE_GUARD_CRITICAL_HEADING_DEG = 18.0
+LANE_GUARD_RECOVERY_CRAWL_SPEED_MPS = 0.35
+LANE_GUARD_RECOVERY_CRAWL_THROTTLE = 0.14
+LANE_GUARD_RECOVERY_CRAWL_MAX_THROTTLE = 0.18
 
 
 class ModelController:
@@ -350,11 +353,27 @@ class ModelController:
         )
 
         if critical_recovery:
-            throttle = 0.0
-            brake = max(brake, 0.35)
+            if observation.state.speed_mps <= LANE_GUARD_RECOVERY_CRAWL_SPEED_MPS:
+                throttle = clamp(
+                    max(throttle, LANE_GUARD_RECOVERY_CRAWL_THROTTLE),
+                    0.0,
+                    LANE_GUARD_RECOVERY_CRAWL_MAX_THROTTLE,
+                )
+                brake = 0.0
+            else:
+                throttle = 0.0
+                brake = max(brake, 0.35)
         elif recovery_needed:
-            throttle = min(throttle, 0.18)
-            brake = max(brake, 0.12)
+            if observation.state.speed_mps <= LANE_GUARD_RECOVERY_CRAWL_SPEED_MPS:
+                throttle = clamp(
+                    max(throttle, LANE_GUARD_RECOVERY_CRAWL_THROTTLE),
+                    0.0,
+                    LANE_GUARD_RECOVERY_CRAWL_MAX_THROTTLE,
+                )
+                brake = 0.0
+            else:
+                throttle = min(throttle, 0.18)
+                brake = max(brake, 0.12)
 
         return guarded_steering, throttle, brake
 

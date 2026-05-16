@@ -54,13 +54,14 @@ def make_observation(
     lane_offset_m: float,
     heading_error_deg: float,
     is_junction: bool,
+    speed_mps: float = 4.0,
 ) -> DrivingObservation:
     return DrivingObservation(
         state=VehicleState(
             vehicle_id="ego-test",
             timestamp=0.0,
             pose=Pose2D(),
-            speed_mps=4.0,
+            speed_mps=speed_mps,
             control=ControlCommand(),
         ),
         front_camera_rgb=np.zeros((2, 2, 3), dtype=np.uint8),
@@ -138,6 +139,7 @@ class LaneGuardTests(unittest.TestCase):
             lane_offset_m=1.25,
             heading_error_deg=20.0,
             is_junction=False,
+            speed_mps=4.0,
         )
 
         steering, throttle, brake = controller._apply_lane_guard(
@@ -151,12 +153,34 @@ class LaneGuardTests(unittest.TestCase):
         self.assertEqual(throttle, 0.0)
         self.assertGreaterEqual(brake, 0.35)
 
+    def test_large_lane_error_crawls_when_already_stopped(self) -> None:
+        controller = make_controller()
+        observation = make_observation(
+            lane_offset_m=-0.66,
+            heading_error_deg=-22.0,
+            is_junction=True,
+            speed_mps=0.0,
+        )
+
+        steering, throttle, brake = controller._apply_lane_guard(
+            observation,
+            steering=0.8,
+            throttle=0.7,
+            brake=0.0,
+        )
+
+        self.assertGreater(steering, 0.0)
+        self.assertGreater(throttle, 0.0)
+        self.assertLessEqual(throttle, 0.18)
+        self.assertEqual(brake, 0.0)
+
     def test_junction_recovery_stops_softening_when_lane_error_is_large(self) -> None:
         controller = make_controller()
         observation = make_observation(
             lane_offset_m=1.0,
             heading_error_deg=14.0,
             is_junction=True,
+            speed_mps=4.0,
         )
 
         steering, throttle, brake = controller._apply_lane_guard(

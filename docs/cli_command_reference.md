@@ -447,8 +447,9 @@ Use `--lane-guard` when you want a stable CARLA demonstration with a trained
 checkpoint plus a light map-based lane correction. The correction is damped
 inside junctions to avoid twitching when CARLA waypoints change through an
 intersection, but large lane or heading errors trigger stronger recovery
-steering and speed reduction. Leave it off when you want a pure model-only
-evaluation.
+steering and speed reduction. If recovery braking nearly stops the car, the
+guard crawls slowly so the steering can pull it back into the lane. Leave it
+off when you want a pure model-only evaluation.
 Use `--traffic-rule-guard` with CARLA when you want a safety assist for
 traffic lights and stop signs. The guard can creep a stopped car closer to a
 red-light trigger line, then release leftover braking when the light turns
