@@ -36,6 +36,7 @@ sys.modules.setdefault("torch", torch_stub)
 sys.modules.setdefault("torch.nn", nn_stub)
 
 from self_driving.inference import (
+    MODEL_FALSE_STOP_RELEASE_THROTTLE,
     ModelController,
     STOP_HOLD_STEPS,
     STOP_SIGN_STOPPED_SPEED_MPS,
@@ -156,6 +157,63 @@ class TrafficRuleGuardTests(unittest.TestCase):
 
         self.assertEqual(throttle, TRAFFIC_LIGHT_RELEASE_THROTTLE)
         self.assertEqual(brake, 0.0)
+
+    def test_releases_model_only_false_stop_when_no_rule_is_active(self) -> None:
+        controller = make_controller()
+        observation = make_observation(speed_mps=0.0, traffic_rule_details=None)
+
+        throttle, brake = controller._release_model_false_stop(
+            observation,
+            throttle=0.0,
+            brake=0.9,
+        )
+
+        self.assertEqual(throttle, MODEL_FALSE_STOP_RELEASE_THROTTLE)
+        self.assertEqual(brake, 0.0)
+
+    def test_false_stop_release_does_not_override_red_light(self) -> None:
+        controller = make_controller()
+        observation = make_observation(
+            speed_mps=0.0,
+            traffic_rule_details={
+                "traffic_light": {
+                    "id": 1,
+                    "state": "Red",
+                    "forward_distance_m": 0.8,
+                }
+            },
+        )
+
+        throttle, brake = controller._release_model_false_stop(
+            observation,
+            throttle=0.0,
+            brake=1.0,
+        )
+
+        self.assertEqual(throttle, 0.0)
+        self.assertEqual(brake, 1.0)
+
+    def test_false_stop_release_does_not_override_stop_sign(self) -> None:
+        controller = make_controller()
+        observation = make_observation(
+            speed_mps=0.0,
+            traffic_rule_details={
+                "stop_sign": {
+                    "id": 7,
+                    "state": "Stop",
+                    "forward_distance_m": 0.8,
+                }
+            },
+        )
+
+        throttle, brake = controller._release_model_false_stop(
+            observation,
+            throttle=0.0,
+            brake=1.0,
+        )
+
+        self.assertEqual(throttle, 0.0)
+        self.assertEqual(brake, 1.0)
 
     def test_stop_sign_requires_full_hold_before_clear(self) -> None:
         controller = make_controller()

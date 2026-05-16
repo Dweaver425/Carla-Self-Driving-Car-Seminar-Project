@@ -646,7 +646,8 @@ Output to check:
 Use `--traffic-rule-guard` when you want CARLA to assist braking for
 red/yellow lights and stop signs. If the car settles too early at a red light,
 the guard can creep closer to the trigger line, then release leftover braking
-when the light turns green.
+when the light turns green. It also releases model-only false stops when no
+active rule is present.
 Use `--lane-guard` to steady the live demo. It dampens steering corrections
 inside junctions so intersection waypoint changes do not make the car twitch as
 much.
