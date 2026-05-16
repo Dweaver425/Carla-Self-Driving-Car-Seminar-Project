@@ -120,6 +120,27 @@ class CarlaStopSignFilterTests(unittest.TestCase):
                     "trigger_min_forward_m": 12.89,
                     "trigger_max_forward_m": 14.95,
                     "trigger_min_abs_lateral_m": 0.2,
+                    "lateral_distance_m": 0.2,
+                    "angle_deg": 1.0,
+                },
+                ego_waypoint,
+            )
+        )
+
+    def test_rejects_intersection_stop_sign_on_cross_approach(self) -> None:
+        client = CarlaSimulatorClient.__new__(CarlaSimulatorClient)
+        ego_waypoint = types.SimpleNamespace(road_id=12, lane_id=1, lane_width=3.5)
+
+        self.assertFalse(
+            client._is_stop_sign_for_ego_lane(
+                {
+                    "road_id": 150,
+                    "lane_id": 1,
+                    "trigger_min_forward_m": 5.0,
+                    "trigger_max_forward_m": 9.0,
+                    "trigger_min_abs_lateral_m": 0.2,
+                    "lateral_distance_m": 3.2,
+                    "angle_deg": 58.0,
                 },
                 ego_waypoint,
             )
@@ -135,6 +156,8 @@ class CarlaStopSignFilterTests(unittest.TestCase):
                     "trigger_min_forward_m": 4.0,
                     "trigger_max_forward_m": 8.0,
                     "trigger_min_abs_lateral_m": 0.4,
+                    "lateral_distance_m": 0.4,
+                    "angle_deg": 4.0,
                 },
                 ego_waypoint,
             )
@@ -243,6 +266,27 @@ class FleetStopSignFilterTests(unittest.TestCase):
                     "trigger_min_forward_m": 12.89,
                     "trigger_max_forward_m": 14.95,
                     "trigger_min_abs_lateral_m": 0.2,
+                    "lateral_distance_m": 0.2,
+                    "angle_deg": 1.0,
+                },
+                ego_waypoint,
+            )
+        )
+
+    def test_rejects_intersection_stop_sign_on_cross_approach(self) -> None:
+        collector = FleetCarlaCollector.__new__(FleetCarlaCollector)
+        ego_waypoint = types.SimpleNamespace(road_id=12, lane_id=1, lane_width=3.5)
+
+        self.assertFalse(
+            collector._is_stop_sign_for_ego_lane(
+                {
+                    "road_id": 150,
+                    "lane_id": 1,
+                    "trigger_min_forward_m": 5.0,
+                    "trigger_max_forward_m": 9.0,
+                    "trigger_min_abs_lateral_m": 0.2,
+                    "lateral_distance_m": 3.2,
+                    "angle_deg": 58.0,
                 },
                 ego_waypoint,
             )

@@ -493,6 +493,7 @@ class FleetCarlaCollector:
                     or details["forward_distance_m"] < best["forward_distance_m"]
                 )
             ):
+                details["source"] = "fallback_stop_sign_scan"
                 best = details
         return best
 
@@ -506,7 +507,7 @@ class FleetCarlaCollector:
                 and sign_lane_id is not None
             ):
                 return int(sign_lane_id) == int(ego_waypoint.lane_id)
-            return True
+            return self._stop_sign_trigger_matches_ego_approach(details, ego_waypoint)
 
         if sign_road_id is not None and sign_lane_id is not None:
             return self._stop_sign_lane_matches_ego_lane(details, ego_waypoint)
@@ -532,7 +533,9 @@ class FleetCarlaCollector:
             details,
             ego_waypoint,
         ):
-            return True
+            if self._stop_sign_lane_matches_ego_lane(details, ego_waypoint):
+                return True
+            return self._stop_sign_trigger_matches_ego_approach(details, ego_waypoint)
         if ego_waypoint is not None and self._stop_sign_lane_matches_ego_lane(
             details,
             ego_waypoint,
@@ -540,6 +543,18 @@ class FleetCarlaCollector:
             return abs(details["lateral_distance_m"]) <= 6.0
 
         return abs(details["lateral_distance_m"]) <= 3.4 and abs(details["angle_deg"]) <= 45.0
+
+    def _stop_sign_trigger_matches_ego_approach(
+        self,
+        details: dict[str, Any],
+        ego_waypoint: Any,
+    ) -> bool:
+        lane_width = float(getattr(ego_waypoint, "lane_width", 3.5) or 3.5)
+        lateral_limit = (lane_width * 0.5) + 0.75
+        return (
+            abs(float(details.get("lateral_distance_m", 999.0))) <= lateral_limit
+            and abs(float(details.get("angle_deg", 999.0))) <= 45.0
+        )
 
     def _stop_sign_trigger_intersects_ego_lane(
         self,

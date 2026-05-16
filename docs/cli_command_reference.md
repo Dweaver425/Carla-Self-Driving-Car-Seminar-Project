@@ -451,9 +451,10 @@ traffic lights and stop signs. The guard can creep a stopped car closer to a
 red-light trigger line, then release leftover braking when the light turns
 green. Leave it off when you want to measure whether the image-only model
 learned those rules by itself.
-If the visible light disagrees with the log, inspect
-`traffic_rule_details.traffic_light.source`, `id`, `road_id`, and `lane_id` to
-confirm which CARLA actor was selected.
+If the visible light or stop sign disagrees with the log, inspect
+`traffic_rule_details.traffic_light.source` or
+`traffic_rule_details.stop_sign.source`, plus `id`, `road_id`, and `lane_id`,
+to confirm which CARLA actor was selected.
 
 ### Output to check
 
