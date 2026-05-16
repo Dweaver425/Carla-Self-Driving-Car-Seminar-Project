@@ -36,8 +36,6 @@ sys.modules.setdefault("torch", torch_stub)
 sys.modules.setdefault("torch.nn", nn_stub)
 
 from self_driving.inference import (
-    MODEL_FALSE_STOP_JUNCTION_RELEASE_THROTTLE,
-    MODEL_FALSE_STOP_RELEASE_THROTTLE,
     ModelController,
     STOP_HOLD_STEPS,
     STOP_SIGN_STOPPED_SPEED_MPS,
@@ -62,7 +60,6 @@ def make_observation(
     lane_offset_m: float | None = 0.0,
     heading_error_deg: float | None = 0.0,
     is_junction: bool = False,
-    obstacle_details: dict | None = None,
 ) -> DrivingObservation:
     return DrivingObservation(
         state=VehicleState(
@@ -77,7 +74,6 @@ def make_observation(
         lane_offset_m=lane_offset_m,
         heading_error_deg=heading_error_deg,
         lane_details={"is_junction": is_junction},
-        obstacle_details=obstacle_details,
     )
 
 
@@ -171,157 +167,18 @@ class TrafficRuleGuardTests(unittest.TestCase):
         self.assertEqual(throttle, TRAFFIC_LIGHT_RELEASE_THROTTLE)
         self.assertEqual(brake, 0.0)
 
-    def test_releases_model_only_false_stop_when_no_rule_is_active(self) -> None:
+    def test_no_rule_does_not_release_model_brake(self) -> None:
         controller = make_controller()
         observation = make_observation(speed_mps=0.0, traffic_rule_details=None)
 
-        throttle, brake = controller._release_model_false_stop(
+        throttle, brake = controller._apply_traffic_rule_guard(
             observation,
-            steering=0.0,
-            throttle=0.0,
-            brake=0.9,
-        )
-
-        self.assertEqual(throttle, MODEL_FALSE_STOP_RELEASE_THROTTLE)
-        self.assertEqual(brake, 0.0)
-
-    def test_false_stop_release_blocks_near_obstacle(self) -> None:
-        controller = make_controller()
-        observation = make_observation(
-            speed_mps=0.0,
-            traffic_rule_details=None,
-            obstacle_details={"distance_m": 3.0},
-        )
-
-        throttle, brake = controller._release_model_false_stop(
-            observation,
-            steering=0.0,
             throttle=0.0,
             brake=0.9,
         )
 
         self.assertEqual(throttle, 0.0)
         self.assertEqual(brake, 0.9)
-
-    def test_false_stop_release_allows_careful_junction_creep(self) -> None:
-        controller = make_controller()
-        observation = make_observation(
-            speed_mps=0.0,
-            traffic_rule_details=None,
-            is_junction=True,
-        )
-
-        throttle, brake = controller._release_model_false_stop(
-            observation,
-            steering=0.0,
-            throttle=0.0,
-            brake=0.9,
-        )
-
-        self.assertEqual(throttle, MODEL_FALSE_STOP_JUNCTION_RELEASE_THROTTLE)
-        self.assertEqual(brake, 0.0)
-
-    def test_false_stop_release_blocks_unsafe_junction_state(self) -> None:
-        controller = make_controller()
-        observation = make_observation(
-            speed_mps=0.0,
-            traffic_rule_details=None,
-            is_junction=True,
-            lane_offset_m=0.6,
-            heading_error_deg=8.0,
-        )
-
-        throttle, brake = controller._release_model_false_stop(
-            observation,
-            steering=0.2,
-            throttle=0.0,
-            brake=0.9,
-        )
-        self.assertEqual(throttle, 0.0)
-        self.assertEqual(brake, 0.9)
-
-    def test_false_stop_release_blocks_turning_state(self) -> None:
-        controller = make_controller()
-        turning_observation = make_observation(
-            speed_mps=0.0,
-            traffic_rule_details=None,
-            lane_offset_m=0.6,
-            heading_error_deg=8.0,
-        )
-
-        throttle, brake = controller._release_model_false_stop(
-            turning_observation,
-            steering=0.3,
-            throttle=0.0,
-            brake=0.9,
-        )
-        self.assertEqual(throttle, 0.0)
-        self.assertEqual(brake, 0.9)
-
-    def test_false_stop_release_blocks_when_lane_metrics_missing(self) -> None:
-        controller = make_controller()
-        observation = make_observation(
-            speed_mps=0.0,
-            traffic_rule_details=None,
-            lane_offset_m=None,
-            heading_error_deg=None,
-        )
-
-        throttle, brake = controller._release_model_false_stop(
-            observation,
-            steering=0.0,
-            throttle=0.0,
-            brake=0.9,
-        )
-
-        self.assertEqual(throttle, 0.0)
-        self.assertEqual(brake, 0.9)
-
-    def test_false_stop_release_does_not_override_red_light(self) -> None:
-        controller = make_controller()
-        observation = make_observation(
-            speed_mps=0.0,
-            traffic_rule_details={
-                "traffic_light": {
-                    "id": 1,
-                    "state": "Red",
-                    "forward_distance_m": 0.8,
-                }
-            },
-        )
-
-        throttle, brake = controller._release_model_false_stop(
-            observation,
-            steering=0.0,
-            throttle=0.0,
-            brake=1.0,
-        )
-
-        self.assertEqual(throttle, 0.0)
-        self.assertEqual(brake, 1.0)
-
-    def test_false_stop_release_does_not_override_stop_sign(self) -> None:
-        controller = make_controller()
-        observation = make_observation(
-            speed_mps=0.0,
-            traffic_rule_details={
-                "stop_sign": {
-                    "id": 7,
-                    "state": "Stop",
-                    "forward_distance_m": 0.8,
-                }
-            },
-        )
-
-        throttle, brake = controller._release_model_false_stop(
-            observation,
-            steering=0.0,
-            throttle=0.0,
-            brake=1.0,
-        )
-
-        self.assertEqual(throttle, 0.0)
-        self.assertEqual(brake, 1.0)
 
     def test_stop_sign_requires_full_hold_before_clear(self) -> None:
         controller = make_controller()

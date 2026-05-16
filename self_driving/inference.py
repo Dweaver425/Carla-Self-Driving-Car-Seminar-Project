@@ -22,18 +22,6 @@ STOP_SIGN_LOOKAHEAD_M = 20.0
 STOP_SIGN_COMMITTED_PAST_BUFFER_M = 8.0
 STOP_SIGN_HARD_BRAKE_DISTANCE_M = 6.0
 STOP_SIGN_STOPPED_SPEED_MPS = 0.08
-MODEL_FALSE_STOP_SPEED_MPS = 0.35
-MODEL_FALSE_STOP_BRAKE_THRESHOLD = 0.35
-MODEL_FALSE_STOP_RELEASE_THROTTLE = 0.18
-MODEL_FALSE_STOP_JUNCTION_RELEASE_THROTTLE = 0.12
-MODEL_FALSE_STOP_MAX_STEERING = 0.12
-MODEL_FALSE_STOP_MAX_LANE_OFFSET_M = 0.35
-MODEL_FALSE_STOP_MAX_HEADING_DEG = 5.0
-MODEL_FALSE_STOP_MIN_OBSTACLE_DISTANCE_M = 5.0
-MODEL_FALSE_STOP_JUNCTION_MAX_STEERING = 0.08
-MODEL_FALSE_STOP_JUNCTION_MAX_LANE_OFFSET_M = 0.25
-MODEL_FALSE_STOP_JUNCTION_MAX_HEADING_DEG = 3.5
-MODEL_FALSE_STOP_JUNCTION_MIN_OBSTACLE_DISTANCE_M = 7.0
 LANE_GUARD_JUNCTION_BLEND_SCALE = 0.45
 LANE_GUARD_JUNCTION_GAIN_SCALE = 0.6
 LANE_GUARD_JUNCTION_DEADBAND_OFFSET_M = 0.45
@@ -118,12 +106,6 @@ class ModelController:
         if self.traffic_rule_guard_enabled:
             throttle, brake = self._apply_traffic_rule_guard(
                 observation,
-                throttle=throttle,
-                brake=brake,
-            )
-            throttle, brake = self._release_model_false_stop(
-                observation,
-                steering=steering,
                 throttle=throttle,
                 brake=brake,
             )
@@ -275,107 +257,6 @@ class ModelController:
         if not enabled:
             return throttle, brake
         return max(throttle, TRAFFIC_LIGHT_RELEASE_THROTTLE), 0.0
-
-    def _release_model_false_stop(
-        self,
-        observation: DrivingObservation,
-        *,
-        steering: float,
-        throttle: float,
-        brake: float,
-    ) -> tuple[float, float]:
-        if self._has_active_rule_stop(observation):
-            return throttle, brake
-        release_throttle = self._false_stop_release_throttle(
-            observation,
-            steering=steering,
-        )
-        if (
-            observation.state.speed_mps <= MODEL_FALSE_STOP_SPEED_MPS
-            and brake >= MODEL_FALSE_STOP_BRAKE_THRESHOLD
-            and release_throttle is not None
-        ):
-            return max(throttle, release_throttle), 0.0
-        return throttle, brake
-
-    def _false_stop_release_throttle(
-        self,
-        observation: DrivingObservation,
-        *,
-        steering: float,
-    ) -> float | None:
-        if observation.lane_offset_m is None or observation.heading_error_deg is None:
-            return None
-
-        is_junction = self._is_junction(observation)
-        steering_limit = (
-            MODEL_FALSE_STOP_JUNCTION_MAX_STEERING
-            if is_junction
-            else MODEL_FALSE_STOP_MAX_STEERING
-        )
-        lane_offset_limit = (
-            MODEL_FALSE_STOP_JUNCTION_MAX_LANE_OFFSET_M
-            if is_junction
-            else MODEL_FALSE_STOP_MAX_LANE_OFFSET_M
-        )
-        heading_limit = (
-            MODEL_FALSE_STOP_JUNCTION_MAX_HEADING_DEG
-            if is_junction
-            else MODEL_FALSE_STOP_MAX_HEADING_DEG
-        )
-        obstacle_limit = (
-            MODEL_FALSE_STOP_JUNCTION_MIN_OBSTACLE_DISTANCE_M
-            if is_junction
-            else MODEL_FALSE_STOP_MIN_OBSTACLE_DISTANCE_M
-        )
-
-        if abs(steering) > steering_limit:
-            return None
-        if abs(float(observation.lane_offset_m)) > lane_offset_limit:
-            return None
-        if abs(float(observation.heading_error_deg)) > heading_limit:
-            return None
-
-        obstacle = observation.obstacle_details
-        if isinstance(obstacle, dict):
-            distance = obstacle.get("distance_m")
-            if isinstance(distance, int | float) and distance < obstacle_limit:
-                return None
-
-        if is_junction:
-            return MODEL_FALSE_STOP_JUNCTION_RELEASE_THROTTLE
-        return MODEL_FALSE_STOP_RELEASE_THROTTLE
-
-    def _has_active_rule_stop(self, observation: DrivingObservation) -> bool:
-        details = observation.traffic_rule_details or {}
-        traffic_light = details.get("traffic_light")
-        if isinstance(traffic_light, dict) and traffic_light.get("state") in {"Red", "Yellow"}:
-            forward_distance = float(traffic_light.get("forward_distance_m", 999.0))
-            return self._must_stop_for_rule(
-                observation,
-                forward_distance_m=forward_distance,
-                max_lookahead_m=TRAFFIC_LIGHT_LOOKAHEAD_M,
-            )
-
-        stop_sign = details.get("stop_sign")
-        if not isinstance(stop_sign, dict):
-            return False
-        stop_id = int(stop_sign.get("id", -1))
-        if stop_id in self._cleared_stop_sign_ids:
-            return False
-
-        forward_distance = float(stop_sign.get("forward_distance_m", 999.0))
-        return (
-            self._must_stop_for_rule(
-                observation,
-                forward_distance_m=forward_distance,
-                max_lookahead_m=STOP_SIGN_LOOKAHEAD_M,
-            )
-            or (
-                self._active_stop_sign_id == stop_id
-                and forward_distance >= -STOP_SIGN_COMMITTED_PAST_BUFFER_M
-            )
-        )
 
     def _apply_lane_guard(
         self,

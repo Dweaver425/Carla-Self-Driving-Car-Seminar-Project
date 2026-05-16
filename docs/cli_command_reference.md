@@ -450,11 +450,10 @@ intersection. Leave it off when you want a pure model-only evaluation.
 Use `--traffic-rule-guard` with CARLA when you want a safety assist for
 traffic lights and stop signs. The guard can creep a stopped car closer to a
 red-light trigger line, then release leftover braking when the light turns
-green. It also releases model-only false stops when no active traffic rule is
-present, but only when the car is centered, straight, and no close obstacle is
-detected. In junctions, that release uses an even gentler creep. Leave it off
-when you want to measure whether the image-only model learned those rules by
-itself.
+green. It does not override model-only braking when no active rule is present;
+fix those false stops with targeted data instead of a throttle override. Leave
+it off when you want to measure whether the image-only model learned those
+rules by itself.
 If the visible light or stop sign disagrees with the log, inspect
 `traffic_rule_details.traffic_light.source` or
 `traffic_rule_details.stop_sign.source`, plus `id`, `road_id`, and `lane_id`,
