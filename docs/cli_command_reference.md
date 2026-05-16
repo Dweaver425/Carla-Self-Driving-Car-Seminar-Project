@@ -411,7 +411,7 @@ py -3.12 main.py infer --backend carla --autopilot-model [options]
 | `--autopilot-guide` | flag | `False` | no | CARLA autopilot drives while the model still predicts controls for comparison. |
 | `--autopilot-model` | flag | `False` | no | CARLA autopilot is the active driving model. No checkpoint is required. |
 | `--lane-guard` | flag | `False` | no | CARLA waypoint safety assist nudges steering back toward the lane if the model drifts. |
-| `--lane-guard-strength` | `float` | `0.35` | no | Maximum steering blend used by `--lane-guard`. |
+| `--lane-guard-strength` | `float` | `0.55` | no | Maximum normal steering blend used by `--lane-guard`. Large recovery errors can override this for safety. |
 | `--traffic-rule-guard` | flag | `False` | no | CARLA rule assist brakes for detected red/yellow lights and stop signs. |
 | `--show-env` | flag | `False` | no | Print environment details before the run starts. |
 
@@ -446,7 +446,9 @@ model's predictions were from CARLA autopilot's applied controls.
 Use `--lane-guard` when you want a stable CARLA demonstration with a trained
 checkpoint plus a light map-based lane correction. The correction is damped
 inside junctions to avoid twitching when CARLA waypoints change through an
-intersection. Leave it off when you want a pure model-only evaluation.
+intersection, but large lane or heading errors trigger stronger recovery
+steering and speed reduction. Leave it off when you want a pure model-only
+evaluation.
 Use `--traffic-rule-guard` with CARLA when you want a safety assist for
 traffic lights and stop signs. The guard can creep a stopped car closer to a
 red-light trigger line, then release leftover braking when the light turns

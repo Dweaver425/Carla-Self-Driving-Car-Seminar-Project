@@ -649,9 +649,9 @@ the guard can creep closer to the trigger line, then release leftover braking
 when the light turns green. It does not override model-only braking when no
 active rule is present; fix those false stops with targeted data instead of a
 throttle override.
-Use `--lane-guard` to steady the live demo. It dampens steering corrections
-inside junctions so intersection waypoint changes do not make the car twitch as
-much.
+Use `--lane-guard` to steady the live demo. It dampens small steering
+corrections inside junctions, but applies stronger recovery steering and slows
+the car when lane offset or heading error gets large.
 If the visible light or stop sign disagrees with the logged state, check
 `traffic_rule_details.traffic_light.source` or
 `traffic_rule_details.stop_sign.source`, plus `id`, `road_id`, and `lane_id`,

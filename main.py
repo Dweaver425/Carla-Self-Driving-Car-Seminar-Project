@@ -206,7 +206,7 @@ def build_parser() -> argparse.ArgumentParser:
     infer_parser.add_argument(
         "--lane-guard-strength",
         type=float,
-        default=0.35,
+        default=0.55,
         help="Maximum lane-guard steering blend from 0.0 to 1.0.",
     )
     infer_parser.add_argument(
@@ -402,7 +402,7 @@ def make_controller(args: argparse.Namespace, controller_name: str) -> Any:
             target_speed_mps=args.target_speed,
             autopilot_guide=autopilot_guide,
             lane_guard=getattr(args, "lane_guard", False),
-            lane_guard_strength=getattr(args, "lane_guard_strength", 0.35),
+            lane_guard_strength=getattr(args, "lane_guard_strength", 0.55),
             traffic_rule_guard=getattr(args, "traffic_rule_guard", False),
         )
     raise ValueError(f"Unsupported controller: {controller_name}")

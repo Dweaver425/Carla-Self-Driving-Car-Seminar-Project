@@ -22,12 +22,18 @@ STOP_SIGN_LOOKAHEAD_M = 20.0
 STOP_SIGN_COMMITTED_PAST_BUFFER_M = 8.0
 STOP_SIGN_HARD_BRAKE_DISTANCE_M = 6.0
 STOP_SIGN_STOPPED_SPEED_MPS = 0.08
+OBSTACLE_GUARD_SLOW_DISTANCE_M = 5.0
+OBSTACLE_GUARD_BRAKE_DISTANCE_M = 2.5
+LANE_GUARD_DEFAULT_STRENGTH = 0.55
 LANE_GUARD_JUNCTION_BLEND_SCALE = 0.45
 LANE_GUARD_JUNCTION_GAIN_SCALE = 0.6
 LANE_GUARD_JUNCTION_DEADBAND_OFFSET_M = 0.45
 LANE_GUARD_JUNCTION_DEADBAND_HEADING_DEG = 6.0
 LANE_GUARD_JUNCTION_MAX_DELTA = 0.04
-LANE_GUARD_JUNCTION_URGENT_MAX_DELTA = 0.08
+LANE_GUARD_RECOVERY_OFFSET_M = 0.75
+LANE_GUARD_RECOVERY_HEADING_DEG = 10.0
+LANE_GUARD_CRITICAL_OFFSET_M = 1.15
+LANE_GUARD_CRITICAL_HEADING_DEG = 18.0
 
 
 class ModelController:
@@ -37,7 +43,7 @@ class ModelController:
         target_speed_mps: float = 8.0,
         autopilot_guide: bool = False,
         lane_guard: bool = False,
-        lane_guard_strength: float = 0.35,
+        lane_guard_strength: float = LANE_GUARD_DEFAULT_STRENGTH,
         traffic_rule_guard: bool = False,
     ) -> None:
         self.model, self.device, self.metadata = load_driving_model(checkpoint_path)
@@ -109,6 +115,12 @@ class ModelController:
                 throttle=throttle,
                 brake=brake,
             )
+
+        throttle, brake = self._apply_obstacle_guard(
+            observation,
+            throttle=throttle,
+            brake=brake,
+        )
 
         return ControlCommand(throttle=throttle, steering=steering, brake=brake)
 
@@ -258,6 +270,27 @@ class ModelController:
             return throttle, brake
         return max(throttle, TRAFFIC_LIGHT_RELEASE_THROTTLE), 0.0
 
+    def _apply_obstacle_guard(
+        self,
+        observation: DrivingObservation,
+        *,
+        throttle: float,
+        brake: float,
+    ) -> tuple[float, float]:
+        obstacle = observation.obstacle_details
+        if not isinstance(obstacle, dict):
+            return throttle, brake
+
+        distance = obstacle.get("distance_m")
+        if not isinstance(distance, int | float):
+            return throttle, brake
+
+        if distance <= OBSTACLE_GUARD_BRAKE_DISTANCE_M:
+            return 0.0, max(brake, 0.8)
+        if distance <= OBSTACLE_GUARD_SLOW_DISTANCE_M:
+            return min(throttle, 0.12), max(brake, 0.2)
+        return throttle, brake
+
     def _apply_lane_guard(
         self,
         observation: DrivingObservation,
@@ -274,8 +307,17 @@ class ModelController:
         abs_lane_offset = abs(lane_offset)
         abs_heading_error = abs(heading_error)
         is_junction = self._is_junction(observation)
+        recovery_needed = (
+            abs_lane_offset > LANE_GUARD_RECOVERY_OFFSET_M
+            or abs_heading_error > LANE_GUARD_RECOVERY_HEADING_DEG
+        )
+        critical_recovery = (
+            abs_lane_offset > LANE_GUARD_CRITICAL_OFFSET_M
+            or abs_heading_error > LANE_GUARD_CRITICAL_HEADING_DEG
+        )
         if (
             is_junction
+            and not recovery_needed
             and abs_lane_offset < LANE_GUARD_JUNCTION_DEADBAND_OFFSET_M
             and abs_heading_error < LANE_GUARD_JUNCTION_DEADBAND_HEADING_DEG
         ):
@@ -283,7 +325,11 @@ class ModelController:
         if abs_lane_offset < 0.25 and abs_heading_error < 3.0:
             return steering, throttle, brake
 
-        correction_scale = LANE_GUARD_JUNCTION_GAIN_SCALE if is_junction else 1.0
+        correction_scale = (
+            LANE_GUARD_JUNCTION_GAIN_SCALE
+            if is_junction and not recovery_needed
+            else 1.0
+        )
         lane_correction = clamp(
             correction_scale * ((-0.22 * lane_offset) + (-0.045 * heading_error)),
             -1.0,
@@ -291,20 +337,24 @@ class ModelController:
         )
         severity = max(abs_lane_offset / 1.0, abs_heading_error / 12.0)
         blend = clamp(0.15 + (0.2 * severity), 0.0, self.lane_guard_strength)
-        if is_junction:
+        if is_junction and not recovery_needed:
             blend *= LANE_GUARD_JUNCTION_BLEND_SCALE
+        if recovery_needed:
+            blend = max(blend, min(0.55, self.lane_guard_strength + 0.15))
+        if critical_recovery:
+            blend = max(blend, 0.8)
         guarded_steering = clamp(
             ((1.0 - blend) * steering) + (blend * lane_correction),
             -1.0,
             1.0,
         )
 
-        slow_for_lane_error = abs_lane_offset > 0.9 or abs_heading_error > 14.0
-        if is_junction:
-            slow_for_lane_error = abs_lane_offset > 1.2 or abs_heading_error > 20.0
-        if slow_for_lane_error:
-            throttle = min(throttle, 0.25)
-            brake = max(brake, 0.08)
+        if critical_recovery:
+            throttle = 0.0
+            brake = max(brake, 0.35)
+        elif recovery_needed:
+            throttle = min(throttle, 0.18)
+            brake = max(brake, 0.12)
 
         return guarded_steering, throttle, brake
 
@@ -328,14 +378,22 @@ class ModelController:
             else 0.0
         )
         # Let urgent corrections move faster, but damp small frame-to-frame jitter.
-        if self._is_junction(observation):
+        critical_recovery = (
+            abs_lane_offset > LANE_GUARD_CRITICAL_OFFSET_M
+            or abs_heading_error > LANE_GUARD_CRITICAL_HEADING_DEG
+        )
+        recovery_needed = (
+            abs_lane_offset > LANE_GUARD_RECOVERY_OFFSET_M
+            or abs_heading_error > LANE_GUARD_RECOVERY_HEADING_DEG
+        )
+        if critical_recovery:
+            max_delta = 0.18
+        elif recovery_needed:
+            max_delta = 0.13
+        elif self._is_junction(observation):
             max_delta = LANE_GUARD_JUNCTION_MAX_DELTA
-            if abs_lane_offset > 0.9 or abs_heading_error > 14.0:
-                max_delta = LANE_GUARD_JUNCTION_URGENT_MAX_DELTA
         else:
             max_delta = 0.06
-            if abs_lane_offset > 0.75 or abs_heading_error > 10.0:
-                max_delta = 0.11
 
         delta = clamp(steering - self._last_steering, -max_delta, max_delta)
         smoothed = clamp(self._last_steering + delta, -1.0, 1.0)

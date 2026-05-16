@@ -60,6 +60,7 @@ def make_observation(
     lane_offset_m: float | None = 0.0,
     heading_error_deg: float | None = 0.0,
     is_junction: bool = False,
+    obstacle_details: dict | None = None,
 ) -> DrivingObservation:
     return DrivingObservation(
         state=VehicleState(
@@ -74,6 +75,7 @@ def make_observation(
         lane_offset_m=lane_offset_m,
         heading_error_deg=heading_error_deg,
         lane_details={"is_junction": is_junction},
+        obstacle_details=obstacle_details,
     )
 
 
@@ -179,6 +181,40 @@ class TrafficRuleGuardTests(unittest.TestCase):
 
         self.assertEqual(throttle, 0.0)
         self.assertEqual(brake, 0.9)
+
+    def test_obstacle_guard_brakes_for_close_object(self) -> None:
+        controller = make_controller()
+        observation = make_observation(
+            speed_mps=4.0,
+            traffic_rule_details=None,
+            obstacle_details={"distance_m": 2.0},
+        )
+
+        throttle, brake = controller._apply_obstacle_guard(
+            observation,
+            throttle=0.7,
+            brake=0.0,
+        )
+
+        self.assertEqual(throttle, 0.0)
+        self.assertGreaterEqual(brake, 0.8)
+
+    def test_obstacle_guard_slows_for_near_object(self) -> None:
+        controller = make_controller()
+        observation = make_observation(
+            speed_mps=4.0,
+            traffic_rule_details=None,
+            obstacle_details={"distance_m": 4.0},
+        )
+
+        throttle, brake = controller._apply_obstacle_guard(
+            observation,
+            throttle=0.7,
+            brake=0.0,
+        )
+
+        self.assertLessEqual(throttle, 0.12)
+        self.assertGreaterEqual(brake, 0.2)
 
     def test_stop_sign_requires_full_hold_before_clear(self) -> None:
         controller = make_controller()

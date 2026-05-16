@@ -44,7 +44,7 @@ from self_driving.types import ControlCommand, DrivingObservation, Pose2D, Vehic
 
 def make_controller() -> ModelController:
     controller = ModelController.__new__(ModelController)
-    controller.lane_guard_strength = 0.35
+    controller.lane_guard_strength = 0.55
     controller._last_steering = None
     return controller
 
@@ -131,6 +131,57 @@ class LaneGuardTests(unittest.TestCase):
         steering = controller._smooth_guarded_steering(0.2, observation)
 
         self.assertEqual(steering, LANE_GUARD_JUNCTION_MAX_DELTA)
+
+    def test_large_lane_error_overrides_bad_model_turn_and_slows_down(self) -> None:
+        controller = make_controller()
+        observation = make_observation(
+            lane_offset_m=1.25,
+            heading_error_deg=20.0,
+            is_junction=False,
+        )
+
+        steering, throttle, brake = controller._apply_lane_guard(
+            observation,
+            steering=0.8,
+            throttle=0.7,
+            brake=0.0,
+        )
+
+        self.assertLess(steering, 0.0)
+        self.assertEqual(throttle, 0.0)
+        self.assertGreaterEqual(brake, 0.35)
+
+    def test_junction_recovery_stops_softening_when_lane_error_is_large(self) -> None:
+        controller = make_controller()
+        observation = make_observation(
+            lane_offset_m=1.0,
+            heading_error_deg=14.0,
+            is_junction=True,
+        )
+
+        steering, throttle, brake = controller._apply_lane_guard(
+            observation,
+            steering=0.5,
+            throttle=0.7,
+            brake=0.0,
+        )
+
+        self.assertLess(steering, 0.0)
+        self.assertLessEqual(throttle, 0.18)
+        self.assertGreaterEqual(brake, 0.12)
+
+    def test_recovery_smoothing_allows_faster_correction(self) -> None:
+        controller = make_controller()
+        controller._last_steering = 0.0
+        observation = make_observation(
+            lane_offset_m=1.0,
+            heading_error_deg=12.0,
+            is_junction=True,
+        )
+
+        steering = controller._smooth_guarded_steering(-0.5, observation)
+
+        self.assertEqual(steering, -0.13)
 
 
 if __name__ == "__main__":
