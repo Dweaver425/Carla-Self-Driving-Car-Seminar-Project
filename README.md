@@ -447,7 +447,7 @@ Use `--spectator chase` for third person. Use `--spectator hood` for a first-per
 Use `--autopilot-model` when you want CARLA's proven Traffic Manager behavior as the active model.
 Use `--autopilot-guide` when you want CARLA autopilot to drive safely while the model is compared against it.
 Use `--lane-guard` when you want a stable demonstration with a light CARLA waypoint correction. It softens correction inside junctions to avoid twitching when CARLA waypoints change through an intersection. Leave it off for a pure model-only evaluation.
-Use `--traffic-rule-guard` when you want CARLA to assist braking for red/yellow lights and stop signs. The guard can creep a stopped car closer to a red-light trigger line, release leftover braking when the light turns green, and unstick model-only false stops when no active rule is present. Leave it off for a pure image-only model evaluation.
+Use `--traffic-rule-guard` when you want CARLA to assist braking for red/yellow lights and stop signs. The guard can creep a stopped car closer to a red-light trigger line, release leftover braking when the light turns green, and cautiously unstick model-only false stops only when the car is centered, straight, outside junctions, and no close obstacle is detected. Leave it off for a pure image-only model evaluation.
 If a visible traffic light or stop sign does not match the logs, check `traffic_rule_details.traffic_light.source` or `traffic_rule_details.stop_sign.source`, plus `id`, `road_id`, and `lane_id`, to see which CARLA actor was selected.
 Use `--spawn-lateral-offset` and `--spawn-yaw-offset` with `--autopilot-guide` to collect recovery examples for a model that drifts out of its lane.
 

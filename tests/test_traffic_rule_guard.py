@@ -54,7 +54,15 @@ def make_controller() -> ModelController:
     return controller
 
 
-def make_observation(speed_mps: float, traffic_rule_details: dict | None) -> DrivingObservation:
+def make_observation(
+    speed_mps: float,
+    traffic_rule_details: dict | None,
+    *,
+    lane_offset_m: float | None = 0.0,
+    heading_error_deg: float | None = 0.0,
+    is_junction: bool = False,
+    obstacle_details: dict | None = None,
+) -> DrivingObservation:
     return DrivingObservation(
         state=VehicleState(
             vehicle_id="ego-test",
@@ -65,6 +73,10 @@ def make_observation(speed_mps: float, traffic_rule_details: dict | None) -> Dri
         ),
         front_camera_rgb=np.zeros((2, 2, 3), dtype=np.uint8),
         traffic_rule_details=traffic_rule_details,
+        lane_offset_m=lane_offset_m,
+        heading_error_deg=heading_error_deg,
+        lane_details={"is_junction": is_junction},
+        obstacle_details=obstacle_details,
     )
 
 
@@ -164,12 +176,63 @@ class TrafficRuleGuardTests(unittest.TestCase):
 
         throttle, brake = controller._release_model_false_stop(
             observation,
+            steering=0.0,
             throttle=0.0,
             brake=0.9,
         )
 
         self.assertEqual(throttle, MODEL_FALSE_STOP_RELEASE_THROTTLE)
         self.assertEqual(brake, 0.0)
+
+    def test_false_stop_release_blocks_near_obstacle(self) -> None:
+        controller = make_controller()
+        observation = make_observation(
+            speed_mps=0.0,
+            traffic_rule_details=None,
+            obstacle_details={"distance_m": 3.0},
+        )
+
+        throttle, brake = controller._release_model_false_stop(
+            observation,
+            steering=0.0,
+            throttle=0.0,
+            brake=0.9,
+        )
+
+        self.assertEqual(throttle, 0.0)
+        self.assertEqual(brake, 0.9)
+
+    def test_false_stop_release_blocks_junction_or_turning_state(self) -> None:
+        controller = make_controller()
+        junction_observation = make_observation(
+            speed_mps=0.0,
+            traffic_rule_details=None,
+            is_junction=True,
+        )
+        turning_observation = make_observation(
+            speed_mps=0.0,
+            traffic_rule_details=None,
+            lane_offset_m=0.6,
+            heading_error_deg=8.0,
+        )
+
+        throttle, brake = controller._release_model_false_stop(
+            junction_observation,
+            steering=0.0,
+            throttle=0.0,
+            brake=0.9,
+        )
+        self.assertEqual(throttle, 0.0)
+        self.assertEqual(brake, 0.9)
+
+        throttle, brake = controller._release_model_false_stop(
+            turning_observation,
+            steering=0.3,
+            throttle=0.0,
+            brake=0.9,
+        )
+        self.assertEqual(throttle, 0.0)
+        self.assertEqual(brake, 0.9)
 
     def test_false_stop_release_does_not_override_red_light(self) -> None:
         controller = make_controller()
@@ -186,6 +249,7 @@ class TrafficRuleGuardTests(unittest.TestCase):
 
         throttle, brake = controller._release_model_false_stop(
             observation,
+            steering=0.0,
             throttle=0.0,
             brake=1.0,
         )
@@ -208,6 +272,7 @@ class TrafficRuleGuardTests(unittest.TestCase):
 
         throttle, brake = controller._release_model_false_stop(
             observation,
+            steering=0.0,
             throttle=0.0,
             brake=1.0,
         )

@@ -24,7 +24,11 @@ STOP_SIGN_HARD_BRAKE_DISTANCE_M = 6.0
 STOP_SIGN_STOPPED_SPEED_MPS = 0.08
 MODEL_FALSE_STOP_SPEED_MPS = 0.35
 MODEL_FALSE_STOP_BRAKE_THRESHOLD = 0.35
-MODEL_FALSE_STOP_RELEASE_THROTTLE = 0.38
+MODEL_FALSE_STOP_RELEASE_THROTTLE = 0.18
+MODEL_FALSE_STOP_MAX_STEERING = 0.12
+MODEL_FALSE_STOP_MAX_LANE_OFFSET_M = 0.35
+MODEL_FALSE_STOP_MAX_HEADING_DEG = 5.0
+MODEL_FALSE_STOP_MIN_OBSTACLE_DISTANCE_M = 5.0
 LANE_GUARD_JUNCTION_BLEND_SCALE = 0.45
 LANE_GUARD_JUNCTION_GAIN_SCALE = 0.6
 LANE_GUARD_JUNCTION_DEADBAND_OFFSET_M = 0.45
@@ -114,6 +118,7 @@ class ModelController:
             )
             throttle, brake = self._release_model_false_stop(
                 observation,
+                steering=steering,
                 throttle=throttle,
                 brake=brake,
             )
@@ -270,6 +275,7 @@ class ModelController:
         self,
         observation: DrivingObservation,
         *,
+        steering: float,
         throttle: float,
         brake: float,
     ) -> tuple[float, float]:
@@ -278,9 +284,39 @@ class ModelController:
         if (
             observation.state.speed_mps <= MODEL_FALSE_STOP_SPEED_MPS
             and brake >= MODEL_FALSE_STOP_BRAKE_THRESHOLD
+            and self._false_stop_release_is_safe(observation, steering=steering)
         ):
             return max(throttle, MODEL_FALSE_STOP_RELEASE_THROTTLE), 0.0
         return throttle, brake
+
+    def _false_stop_release_is_safe(
+        self,
+        observation: DrivingObservation,
+        *,
+        steering: float,
+    ) -> bool:
+        if self._is_junction(observation):
+            return False
+        if abs(steering) > MODEL_FALSE_STOP_MAX_STEERING:
+            return False
+        if (
+            observation.lane_offset_m is not None
+            and abs(float(observation.lane_offset_m)) > MODEL_FALSE_STOP_MAX_LANE_OFFSET_M
+        ):
+            return False
+        if (
+            observation.heading_error_deg is not None
+            and abs(float(observation.heading_error_deg)) > MODEL_FALSE_STOP_MAX_HEADING_DEG
+        ):
+            return False
+
+        obstacle = observation.obstacle_details
+        if isinstance(obstacle, dict):
+            distance = obstacle.get("distance_m")
+            if isinstance(distance, int | float) and distance < MODEL_FALSE_STOP_MIN_OBSTACLE_DISTANCE_M:
+                return False
+
+        return True
 
     def _has_active_rule_stop(self, observation: DrivingObservation) -> bool:
         details = observation.traffic_rule_details or {}
