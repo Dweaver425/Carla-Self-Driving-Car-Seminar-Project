@@ -51,7 +51,7 @@ def parse_args() -> argparse.Namespace:
 def read_episode_file(path: Path) -> list[str]:
     episodes: list[str] = []
     for line in path.read_text(encoding="utf-8").splitlines():
-        value = line.strip()
+        value = line.lstrip("\ufeff").strip()
         if not value or value.startswith("#"):
             continue
         episodes.append(value)
