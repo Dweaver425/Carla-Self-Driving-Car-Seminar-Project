@@ -94,7 +94,7 @@ set "YAW=%~3"
 set "RUN_OUT=%RUN_ROOT%\run_%RUN_ID%"
 
 echo [%RUN_ID%/%RUNS%] spawn=%SPAWN_INDEX% lateral=%LAT% yaw=%YAW% output=%RUN_OUT%
-py -3.12 main.py infer --backend carla --host "%HOST%" --port %PORT% --tm-port %TM_PORT% --checkpoint "%CHECKPOINT%" --steps %STEPS% --spawn-index %SPAWN_INDEX% --spawn-lateral-offset %LAT% --spawn-yaw-offset %YAW% --target-speed %TARGET_SPEED% --spectator %SPECTATOR% --autopilot-guide --output "%RUN_OUT%" %QUIET_FLAG%
+call py -3.12 main.py infer --backend carla --host "%HOST%" --port %PORT% --tm-port %TM_PORT% --checkpoint "%CHECKPOINT%" --steps %STEPS% --spawn-index %SPAWN_INDEX% --spawn-lateral-offset %LAT% --spawn-yaw-offset %YAW% --target-speed %TARGET_SPEED% --spectator %SPECTATOR% --autopilot-guide --output "%RUN_OUT%" %QUIET_FLAG%
 if errorlevel 1 (
     echo Collection failed on run %RUN_ID%.
     exit /b 1

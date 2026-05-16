@@ -69,7 +69,7 @@ if "%REUSE_TEACHER%"=="1" (
     echo Reusing completed CARLA teacher run: %TEACHER_OUT%
 ) else (
     echo Recording CARLA teacher intersection run...
-    py -3.12 main.py infer --backend carla --host "%HOST%" --port %PORT% --tm-port %TM_PORT% --checkpoint "%CHECKPOINT%" --steps %STEPS% --spawn-index %SPAWN_INDEX% --target-speed %TARGET_SPEED% --spectator %SPECTATOR% --autopilot-guide --output "%TEACHER_OUT%" %QUIET_FLAG%
+    call py -3.12 main.py infer --backend carla --host "%HOST%" --port %PORT% --tm-port %TM_PORT% --checkpoint "%CHECKPOINT%" --steps %STEPS% --spawn-index %SPAWN_INDEX% --target-speed %TARGET_SPEED% --spectator %SPECTATOR% --autopilot-guide --output "%TEACHER_OUT%" %QUIET_FLAG%
     if errorlevel 1 (
         findstr /C:"\"status\": \"completed\"" "%TEACHER_OUT%\metadata.json" >nul 2>nul
         if errorlevel 1 (
@@ -85,7 +85,7 @@ if "%REUSE_MODEL%"=="1" (
     echo Reusing completed model run: %MODEL_OUT%
 ) else (
     echo Recording model intersection run with lane and traffic-rule guards...
-    py -3.12 main.py infer --backend carla --host "%HOST%" --port %PORT% --tm-port %TM_PORT% --checkpoint "%CHECKPOINT%" --steps %STEPS% --spawn-index %SPAWN_INDEX% --target-speed %TARGET_SPEED% --spectator %SPECTATOR% --lane-guard --traffic-rule-guard --output "%MODEL_OUT%" %QUIET_FLAG%
+    call py -3.12 main.py infer --backend carla --host "%HOST%" --port %PORT% --tm-port %TM_PORT% --checkpoint "%CHECKPOINT%" --steps %STEPS% --spawn-index %SPAWN_INDEX% --target-speed %TARGET_SPEED% --spectator %SPECTATOR% --lane-guard --traffic-rule-guard --output "%MODEL_OUT%" %QUIET_FLAG%
     if errorlevel 1 (
         findstr /C:"\"status\": \"completed\"" "%MODEL_OUT%\metadata.json" >nul 2>nul
         if errorlevel 1 (
@@ -98,7 +98,7 @@ if "%REUSE_MODEL%"=="1" (
 
 echo.
 echo Comparing junction frames...
-py -3.12 scripts\analyze_intersection_frames.py --teacher-root "%TEACHER_OUT%" --model-root "%MODEL_OUT%" --output-json "%COMPARE_JSON%" --write-teacher-dataset "%TEACHER_DATASET%"
+call py -3.12 scripts\analyze_intersection_frames.py --teacher-root "%TEACHER_OUT%" --model-root "%MODEL_OUT%" --output-json "%COMPARE_JSON%" --write-teacher-dataset "%TEACHER_DATASET%"
 if errorlevel 1 exit /b 1
 
 echo.
