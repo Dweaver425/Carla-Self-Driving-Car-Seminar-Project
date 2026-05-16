@@ -22,6 +22,9 @@ STOP_SIGN_LOOKAHEAD_M = 20.0
 STOP_SIGN_COMMITTED_PAST_BUFFER_M = 8.0
 STOP_SIGN_HARD_BRAKE_DISTANCE_M = 6.0
 STOP_SIGN_STOPPED_SPEED_MPS = 0.08
+STOP_SIGN_RELEASE_SPEED_MPS = 0.75
+STOP_SIGN_RELEASE_THROTTLE = 0.42
+STOP_SIGN_TRIGGER_MARGIN_M = 0.5
 OBSTACLE_GUARD_SLOW_DISTANCE_M = 5.0
 OBSTACLE_GUARD_BRAKE_DISTANCE_M = 2.5
 OBSTACLE_GUARD_IGNORED_TYPE_PREFIXES = ("traffic.", "static.vegetation")
@@ -185,8 +188,9 @@ class ModelController:
         stop_id = int(stop_sign.get("id", -1))
         forward_distance = float(stop_sign.get("forward_distance_m", 999.0))
         if stop_id in self._cleared_stop_sign_ids:
-            return self._apply_green_light_release(
-                enabled=release_for_green_light,
+            return self._apply_stop_sign_release(
+                observation,
+                forward_distance_m=forward_distance,
                 throttle=throttle,
                 brake=brake,
             )
@@ -196,6 +200,9 @@ class ModelController:
             observation,
             forward_distance_m=forward_distance,
             max_lookahead_m=STOP_SIGN_LOOKAHEAD_M,
+        ) or self._is_inside_stop_sign_trigger(
+            stop_sign,
+            forward_distance_m=forward_distance,
         )
         still_finishing_committed_stop = (
             already_committed
@@ -226,8 +233,9 @@ class ModelController:
         self._cleared_stop_sign_ids.add(stop_id)
         self._active_stop_sign_id = None
         self._stop_hold_steps = 0
-        return self._apply_green_light_release(
-            enabled=release_for_green_light,
+        return self._apply_stop_sign_release(
+            observation,
+            forward_distance_m=forward_distance,
             throttle=throttle,
             brake=brake,
         )
@@ -284,6 +292,36 @@ class ModelController:
         if not enabled:
             return throttle, brake
         return max(throttle, TRAFFIC_LIGHT_RELEASE_THROTTLE), 0.0
+
+    def _apply_stop_sign_release(
+        self,
+        observation: DrivingObservation,
+        *,
+        forward_distance_m: float,
+        throttle: float,
+        brake: float,
+    ) -> tuple[float, float]:
+        if forward_distance_m < -STOP_SIGN_COMMITTED_PAST_BUFFER_M:
+            return throttle, brake
+        if observation.state.speed_mps <= STOP_SIGN_RELEASE_SPEED_MPS or brake > 0.0:
+            return max(throttle, STOP_SIGN_RELEASE_THROTTLE), 0.0
+        return throttle, brake
+
+    def _is_inside_stop_sign_trigger(
+        self,
+        stop_sign: dict[str, object],
+        *,
+        forward_distance_m: float,
+    ) -> bool:
+        try:
+            trigger_min = float(stop_sign["trigger_min_forward_m"])
+            trigger_max = float(stop_sign["trigger_max_forward_m"])
+        except (KeyError, TypeError, ValueError):
+            return False
+
+        trigger_low = min(trigger_min, trigger_max) - STOP_SIGN_TRIGGER_MARGIN_M
+        trigger_high = max(trigger_min, trigger_max) + STOP_SIGN_TRIGGER_MARGIN_M
+        return trigger_low <= forward_distance_m <= trigger_high
 
     def _apply_obstacle_guard(
         self,

@@ -38,6 +38,7 @@ sys.modules.setdefault("torch.nn", nn_stub)
 from self_driving.inference import (
     ModelController,
     STOP_HOLD_STEPS,
+    STOP_SIGN_RELEASE_THROTTLE,
     STOP_SIGN_STOPPED_SPEED_MPS,
     TRAFFIC_LIGHT_CREEP_THROTTLE,
     TRAFFIC_LIGHT_RELEASE_THROTTLE,
@@ -312,6 +313,61 @@ class TrafficRuleGuardTests(unittest.TestCase):
         self.assertEqual(throttle, 0.5)
         self.assertEqual(brake, 0.0)
         self.assertIn(7, controller._cleared_stop_sign_ids)
+
+    def test_stop_sign_release_clears_model_brake_after_full_hold(self) -> None:
+        controller = make_controller()
+        observation = make_observation(
+            speed_mps=0.0,
+            traffic_rule_details={
+                "stop_sign": {
+                    "id": 7,
+                    "state": "Stop",
+                    "forward_distance_m": 9.0,
+                    "trigger_min_forward_m": 8.8,
+                    "trigger_max_forward_m": 11.2,
+                }
+            },
+        )
+
+        for _ in range(STOP_HOLD_STEPS - 1):
+            controller._apply_traffic_rule_guard(
+                observation,
+                throttle=0.0,
+                brake=0.3,
+            )
+
+        throttle, brake = controller._apply_traffic_rule_guard(
+            observation,
+            throttle=0.0,
+            brake=0.3,
+        )
+
+        self.assertEqual(throttle, STOP_SIGN_RELEASE_THROTTLE)
+        self.assertEqual(brake, 0.0)
+        self.assertIn(7, controller._cleared_stop_sign_ids)
+
+    def test_cleared_stop_sign_keeps_releasing_until_car_moves_on(self) -> None:
+        controller = make_controller()
+        controller._cleared_stop_sign_ids.add(7)
+        observation = make_observation(
+            speed_mps=0.0,
+            traffic_rule_details={
+                "stop_sign": {
+                    "id": 7,
+                    "state": "Stop",
+                    "forward_distance_m": 8.0,
+                }
+            },
+        )
+
+        throttle, brake = controller._apply_traffic_rule_guard(
+            observation,
+            throttle=0.0,
+            brake=0.3,
+        )
+
+        self.assertEqual(throttle, STOP_SIGN_RELEASE_THROTTLE)
+        self.assertEqual(brake, 0.0)
 
     def test_committed_stop_sign_keeps_braking_after_sign_moves_behind(self) -> None:
         controller = make_controller()
