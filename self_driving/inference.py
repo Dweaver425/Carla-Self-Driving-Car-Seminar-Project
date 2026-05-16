@@ -11,6 +11,13 @@ from self_driving.types import ControlCommand, DrivingObservation
 STOP_HOLD_STEPS = 25
 TRAFFIC_LIGHT_STOP_BUFFER_M = 2.0
 TRAFFIC_LIGHT_LOOKAHEAD_M = 24.0
+TRAFFIC_LIGHT_DEFAULT_STOP_TARGET_M = 1.5
+TRAFFIC_LIGHT_TRIGGER_STOP_MARGIN_M = 0.25
+TRAFFIC_LIGHT_CREEP_LOOKAHEAD_M = 6.0
+TRAFFIC_LIGHT_CREEP_SPEED_MPS = 0.7
+TRAFFIC_LIGHT_CREEP_THROTTLE = 0.14
+TRAFFIC_LIGHT_RELEASE_SPEED_MPS = 0.5
+TRAFFIC_LIGHT_RELEASE_THROTTLE = 0.45
 STOP_SIGN_LOOKAHEAD_M = 20.0
 STOP_SIGN_COMMITTED_PAST_BUFFER_M = 8.0
 STOP_SIGN_HARD_BRAKE_DISTANCE_M = 6.0
@@ -108,25 +115,48 @@ class ModelController:
     ) -> tuple[float, float]:
         details = observation.traffic_rule_details or {}
         traffic_light = details.get("traffic_light")
+        release_for_green_light = False
         if isinstance(traffic_light, dict) and traffic_light.get("state") in {"Red", "Yellow"}:
             forward_distance = float(traffic_light.get("forward_distance_m", 999.0))
+            if (
+                traffic_light.get("state") == "Red"
+                and observation.state.speed_mps < TRAFFIC_LIGHT_CREEP_SPEED_MPS
+                and forward_distance <= TRAFFIC_LIGHT_CREEP_LOOKAHEAD_M
+                and forward_distance > self._traffic_light_stop_target(traffic_light)
+            ):
+                return TRAFFIC_LIGHT_CREEP_THROTTLE, 0.0
             if self._must_stop_for_rule(
                 observation,
                 forward_distance_m=forward_distance,
                 max_lookahead_m=TRAFFIC_LIGHT_LOOKAHEAD_M,
             ):
                 return 0.0, max(brake, self._brake_for_rule_stop(observation))
+        elif isinstance(traffic_light, dict) and traffic_light.get("state") == "Green":
+            forward_distance = float(traffic_light.get("forward_distance_m", 999.0))
+            release_for_green_light = (
+                observation.state.speed_mps < TRAFFIC_LIGHT_RELEASE_SPEED_MPS
+                and forward_distance <= TRAFFIC_LIGHT_LOOKAHEAD_M
+                and forward_distance >= -TRAFFIC_LIGHT_STOP_BUFFER_M
+            )
 
         stop_sign = details.get("stop_sign")
         if not isinstance(stop_sign, dict):
             self._active_stop_sign_id = None
             self._stop_hold_steps = 0
-            return throttle, brake
+            return self._apply_green_light_release(
+                enabled=release_for_green_light,
+                throttle=throttle,
+                brake=brake,
+            )
 
         stop_id = int(stop_sign.get("id", -1))
         forward_distance = float(stop_sign.get("forward_distance_m", 999.0))
         if stop_id in self._cleared_stop_sign_ids:
-            return throttle, brake
+            return self._apply_green_light_release(
+                enabled=release_for_green_light,
+                throttle=throttle,
+                brake=brake,
+            )
 
         already_committed = self._active_stop_sign_id == stop_id
         must_stop = self._must_stop_for_rule(
@@ -139,7 +169,11 @@ class ModelController:
             and forward_distance >= -STOP_SIGN_COMMITTED_PAST_BUFFER_M
         )
         if not must_stop and not still_finishing_committed_stop:
-            return throttle, brake
+            return self._apply_green_light_release(
+                enabled=release_for_green_light,
+                throttle=throttle,
+                brake=brake,
+            )
 
         if self._active_stop_sign_id != stop_id:
             self._active_stop_sign_id = stop_id
@@ -159,7 +193,11 @@ class ModelController:
         self._cleared_stop_sign_ids.add(stop_id)
         self._active_stop_sign_id = None
         self._stop_hold_steps = 0
-        return throttle, brake
+        return self._apply_green_light_release(
+            enabled=release_for_green_light,
+            throttle=throttle,
+            brake=brake,
+        )
 
     def _must_stop_for_rule(
         self,
@@ -187,6 +225,32 @@ class ModelController:
         if observation.state.speed_mps > 1.0:
             return 0.7
         return 1.0
+
+    def _traffic_light_stop_target(self, traffic_light: dict[str, object]) -> float:
+        trigger_min = traffic_light.get("trigger_min_forward_m")
+        try:
+            trigger_min_m = float(trigger_min)
+        except (TypeError, ValueError):
+            return TRAFFIC_LIGHT_DEFAULT_STOP_TARGET_M
+
+        if trigger_min_m <= 0.0:
+            return TRAFFIC_LIGHT_DEFAULT_STOP_TARGET_M
+        return clamp(
+            trigger_min_m - TRAFFIC_LIGHT_TRIGGER_STOP_MARGIN_M,
+            1.0,
+            2.5,
+        )
+
+    def _apply_green_light_release(
+        self,
+        *,
+        enabled: bool,
+        throttle: float,
+        brake: float,
+    ) -> tuple[float, float]:
+        if not enabled:
+            return throttle, brake
+        return max(throttle, TRAFFIC_LIGHT_RELEASE_THROTTLE), 0.0
 
     def _apply_lane_guard(
         self,

@@ -643,6 +643,11 @@ Output to check:
 - `closest_obstacle_details`
 - `average_abs_control_delta` when using `--autopilot-guide`
 
+Use `--traffic-rule-guard` when you want CARLA to assist braking for
+red/yellow lights and stop signs. If the car settles too early at a red light,
+the guard can creep closer to the trigger line, then release leftover braking
+when the light turns green.
+
 ### Start the fleet server
 
 Purpose:
@@ -864,6 +869,9 @@ py -3.12 main.py infer --backend carla --checkpoint models/weekendTarIndex_v1_cu
 py -3.12 main.py infer --backend carla --checkpoint models/teacherRefined_v1_cuda.pt --steps 600 --spawn-index 1 --target-speed 4 --spectator chase --lane-guard --traffic-rule-guard
 py -3.12 main.py infer --backend carla --checkpoint models/weekendTarIndex_v1_cuda.pt --steps 1000 --spawn-index 1 --target-speed 8 --spectator chase --autopilot-guide --output data/episodes/guidedSpawn1Chase_v1
 ```
+
+Use `--traffic-rule-guard` when you want CARLA's map data to help the model
+handle lights and stop signs during a live test.
 
 For a 30-sim-minute traffic and pedestrian collection run, start CARLA's traffic
 script in one terminal and then run:

@@ -39,6 +39,8 @@ from self_driving.inference import (
     ModelController,
     STOP_HOLD_STEPS,
     STOP_SIGN_STOPPED_SPEED_MPS,
+    TRAFFIC_LIGHT_CREEP_THROTTLE,
+    TRAFFIC_LIGHT_RELEASE_THROTTLE,
 )
 from self_driving.types import ControlCommand, DrivingObservation, Pose2D, VehicleState
 
@@ -108,6 +110,51 @@ class TrafficRuleGuardTests(unittest.TestCase):
         )
 
         self.assertEqual(throttle, 0.4)
+        self.assertEqual(brake, 0.0)
+
+    def test_red_light_creeps_when_stopped_short_of_trigger(self) -> None:
+        controller = make_controller()
+        observation = make_observation(
+            speed_mps=0.0,
+            traffic_rule_details={
+                "traffic_light": {
+                    "id": 1,
+                    "state": "Red",
+                    "forward_distance_m": 2.66,
+                    "trigger_min_forward_m": 2.08,
+                }
+            },
+        )
+
+        throttle, brake = controller._apply_traffic_rule_guard(
+            observation,
+            throttle=0.0,
+            brake=0.95,
+        )
+
+        self.assertEqual(throttle, TRAFFIC_LIGHT_CREEP_THROTTLE)
+        self.assertEqual(brake, 0.0)
+
+    def test_green_light_releases_leftover_model_brake(self) -> None:
+        controller = make_controller()
+        observation = make_observation(
+            speed_mps=0.0,
+            traffic_rule_details={
+                "traffic_light": {
+                    "id": 1,
+                    "state": "Green",
+                    "forward_distance_m": 2.66,
+                }
+            },
+        )
+
+        throttle, brake = controller._apply_traffic_rule_guard(
+            observation,
+            throttle=0.0,
+            brake=0.95,
+        )
+
+        self.assertEqual(throttle, TRAFFIC_LIGHT_RELEASE_THROTTLE)
         self.assertEqual(brake, 0.0)
 
     def test_stop_sign_requires_full_hold_before_clear(self) -> None:
