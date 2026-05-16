@@ -24,6 +24,7 @@ STOP_SIGN_HARD_BRAKE_DISTANCE_M = 6.0
 STOP_SIGN_STOPPED_SPEED_MPS = 0.08
 OBSTACLE_GUARD_SLOW_DISTANCE_M = 5.0
 OBSTACLE_GUARD_BRAKE_DISTANCE_M = 2.5
+OBSTACLE_GUARD_IGNORED_TYPE_PREFIXES = ("traffic.",)
 LANE_GUARD_DEFAULT_STRENGTH = 0.55
 LANE_GUARD_JUNCTION_BLEND_SCALE = 0.45
 LANE_GUARD_JUNCTION_GAIN_SCALE = 0.6
@@ -283,6 +284,8 @@ class ModelController:
         obstacle = observation.obstacle_details
         if not isinstance(obstacle, dict):
             return throttle, brake
+        if self._obstacle_guard_should_ignore(obstacle):
+            return throttle, brake
 
         distance = obstacle.get("distance_m")
         if not isinstance(distance, int | float):
@@ -293,6 +296,15 @@ class ModelController:
         if distance <= OBSTACLE_GUARD_SLOW_DISTANCE_M:
             return min(throttle, 0.12), max(brake, 0.2)
         return throttle, brake
+
+    def _obstacle_guard_should_ignore(self, obstacle: dict[str, object]) -> bool:
+        other_actor = obstacle.get("other_actor")
+        if not isinstance(other_actor, dict):
+            return False
+        type_id = other_actor.get("type_id")
+        if not isinstance(type_id, str):
+            return False
+        return type_id.startswith(OBSTACLE_GUARD_IGNORED_TYPE_PREFIXES)
 
     def _apply_lane_guard(
         self,

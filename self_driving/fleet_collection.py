@@ -411,6 +411,8 @@ class FleetCarlaCollector:
                 and light_lane_id is not None
             ):
                 return int(light_lane_id) == int(ego_waypoint.lane_id)
+            if bool(getattr(ego_waypoint, "is_junction", False)):
+                return False
             return True
 
         if ego_waypoint is not None and self._traffic_light_lane_matches_ego_lane(

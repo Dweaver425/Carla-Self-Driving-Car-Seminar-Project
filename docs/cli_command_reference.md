@@ -457,6 +457,9 @@ green. It does not override model-only braking when no active rule is present;
 fix those false stops with targeted data instead of a throttle override. Leave
 it off when you want to measure whether the image-only model learned those
 rules by itself.
+Obstacle braking ignores `traffic.*` actors such as traffic lights, and
+fallback red-light selection is stricter once the car is already inside a
+junction.
 If the visible light or stop sign disagrees with the log, inspect
 `traffic_rule_details.traffic_light.source` or
 `traffic_rule_details.stop_sign.source`, plus `id`, `road_id`, and `lane_id`,

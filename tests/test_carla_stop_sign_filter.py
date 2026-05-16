@@ -69,6 +69,30 @@ class CarlaStopSignFilterTests(unittest.TestCase):
             )
         )
 
+    def test_rejects_cross_road_traffic_light_while_inside_junction(self) -> None:
+        client = CarlaSimulatorClient.__new__(CarlaSimulatorClient)
+        ego_waypoint = types.SimpleNamespace(
+            road_id=255,
+            lane_id=-1,
+            lane_width=3.5,
+            is_junction=True,
+        )
+
+        self.assertFalse(
+            client._traffic_light_geometry_matches_ego_lane(
+                {
+                    "road_id": 20,
+                    "lane_id": 5,
+                    "trigger_min_forward_m": 15.18,
+                    "trigger_max_forward_m": 19.71,
+                    "trigger_min_abs_lateral_m": 0.4,
+                    "lateral_distance_m": 0.4,
+                    "angle_deg": 1.3,
+                },
+                ego_waypoint,
+            )
+        )
+
     def test_rejects_stop_sign_on_opposite_lane(self) -> None:
         client = CarlaSimulatorClient.__new__(CarlaSimulatorClient)
         ego_waypoint = types.SimpleNamespace(road_id=10, lane_id=1)
@@ -221,6 +245,30 @@ class FleetStopSignFilterTests(unittest.TestCase):
                     "trigger_min_abs_lateral_m": 0.5,
                     "lateral_distance_m": 0.5,
                     "angle_deg": 4.0,
+                },
+                ego_waypoint,
+            )
+        )
+
+    def test_rejects_cross_road_traffic_light_while_inside_junction(self) -> None:
+        collector = FleetCarlaCollector.__new__(FleetCarlaCollector)
+        ego_waypoint = types.SimpleNamespace(
+            road_id=255,
+            lane_id=-1,
+            lane_width=3.5,
+            is_junction=True,
+        )
+
+        self.assertFalse(
+            collector._traffic_light_geometry_matches_ego_lane(
+                {
+                    "road_id": 20,
+                    "lane_id": 5,
+                    "trigger_min_forward_m": 15.18,
+                    "trigger_max_forward_m": 19.71,
+                    "trigger_min_abs_lateral_m": 0.4,
+                    "lateral_distance_m": 0.4,
+                    "angle_deg": 1.3,
                 },
                 ego_waypoint,
             )

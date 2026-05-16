@@ -649,6 +649,9 @@ the guard can creep closer to the trigger line, then release leftover braking
 when the light turns green. It does not override model-only braking when no
 active rule is present; fix those false stops with targeted data instead of a
 throttle override.
+Obstacle braking ignores `traffic.*` actors such as traffic lights, and
+fallback red-light selection is stricter once the car is already inside a
+junction.
 Use `--lane-guard` to steady the live demo. It dampens small steering
 corrections inside junctions, but applies stronger recovery steering and slows
 the car when lane offset or heading error gets large. If recovery braking

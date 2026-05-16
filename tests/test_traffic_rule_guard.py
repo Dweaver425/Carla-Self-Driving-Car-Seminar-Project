@@ -216,6 +216,26 @@ class TrafficRuleGuardTests(unittest.TestCase):
         self.assertLessEqual(throttle, 0.12)
         self.assertGreaterEqual(brake, 0.2)
 
+    def test_obstacle_guard_ignores_traffic_light_actor(self) -> None:
+        controller = make_controller()
+        observation = make_observation(
+            speed_mps=4.0,
+            traffic_rule_details=None,
+            obstacle_details={
+                "distance_m": 2.0,
+                "other_actor": {"type_id": "traffic.traffic_light"},
+            },
+        )
+
+        throttle, brake = controller._apply_obstacle_guard(
+            observation,
+            throttle=0.7,
+            brake=0.0,
+        )
+
+        self.assertEqual(throttle, 0.7)
+        self.assertEqual(brake, 0.0)
+
     def test_stop_sign_requires_full_hold_before_clear(self) -> None:
         controller = make_controller()
         observation = make_observation(
