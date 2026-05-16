@@ -451,7 +451,8 @@ Use `--traffic-rule-guard` when you want CARLA to assist braking for red/yellow 
 Obstacle braking ignores `traffic.*` actors such as traffic lights plus `static.static` and `static.vegetation` scenery near intersections, and fallback red-light selection is stricter once the car is already inside a junction.
 If a visible traffic light or stop sign does not match the logs, check `traffic_rule_details.traffic_light.source` or `traffic_rule_details.stop_sign.source`, plus `id`, `road_id`, and `lane_id`, to see which CARLA actor was selected.
 Use `--spawn-lateral-offset` and `--spawn-yaw-offset` with `--autopilot-guide` to collect recovery examples for a model that drifts out of its lane.
-Use `scripts\collect_intersection_autopilot_training_windows.bat models\current_cuda.pt intersectionAi_v1` to let CARLA autopilot drive the long spawn-1 intersection approach while your checkpoint predicts in the background. The script writes `logs\intersectionAi_v1_datasets.txt` and prints a fine-tune command for training on those teacher labels.
+Use `scripts\collect_intersection_autopilot_training_windows.bat models\current_cuda.pt intersectionAi_v2` to let CARLA autopilot drive the long spawn-1 intersection approach while your checkpoint predicts in the background. The script writes `logs\intersectionAi_v2_datasets.txt` and prints a fine-tune command for training on those teacher labels.
+Use `scripts\compare_intersection_ai_vs_model_windows.bat models\current_cuda.pt intersectionCompare_v1` when you want a same-route CARLA-teacher run and model-only run. It records both, compares junction-frame counts with `scripts\analyze_intersection_frames.py`, writes `logs\intersectionCompare_v1_teacher_datasets.txt`, and prints a fine-tune command for the teacher data.
 
 ### Command: `serve`
 

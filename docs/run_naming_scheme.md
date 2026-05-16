@@ -83,7 +83,13 @@ scripts\collect_stop_sign_targeted_compare_windows.bat models\5hr2cars_v1_cuda.p
 Run a targeted CARLA-autopilot intersection collection:
 
 ```bat
-scripts\collect_intersection_autopilot_training_windows.bat models\5hr2cars_v1_cuda.pt intersectionAi_v1
+scripts\collect_intersection_autopilot_training_windows.bat models\5hr2cars_v1_cuda.pt intersectionAi_v2
+```
+
+Compare CARLA AI and model intersection time on the same route:
+
+```bat
+scripts\compare_intersection_ai_vs_model_windows.bat models\5hr2cars_v1_cuda.pt intersectionCompare_v1
 ```
 
 If a named folder already exists, the scripts stop and ask you to use the next

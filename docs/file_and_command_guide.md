@@ -670,12 +670,24 @@ to see which CARLA actor was selected.
 For the long spawn-1 intersection where the model drifts late in the run, use:
 
 ```bat
-scripts\collect_intersection_autopilot_training_windows.bat models\current_cuda.pt intersectionAi_v1
+scripts\collect_intersection_autopilot_training_windows.bat models\current_cuda.pt intersectionAi_v2
 ```
 
 The script lets CARLA autopilot drive, logs your checkpoint predictions in the
-background, writes `logs\intersectionAi_v1_datasets.txt`, and prints a matching
+background, writes `logs\intersectionAi_v2_datasets.txt`, and prints a matching
 fine-tune command.
+
+To compare how long CARLA AI and your model spend inside intersections on the
+same route, run:
+
+```bat
+scripts\compare_intersection_ai_vs_model_windows.bat models\current_cuda.pt intersectionCompare_v1
+```
+
+It records a CARLA-teacher episode and a model-only episode, then writes
+`logs\intersectionCompare_v1_intersection_compare.json` plus
+`logs\intersectionCompare_v1_teacher_datasets.txt` for fine-tuning on the
+teacher data.
 
 ### Start the fleet server
 

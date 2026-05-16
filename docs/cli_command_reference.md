@@ -471,10 +471,14 @@ If the visible light or stop sign disagrees with the log, inspect
 `traffic_rule_details.stop_sign.source`, plus `id`, `road_id`, and `lane_id`,
 to confirm which CARLA actor was selected.
 Use `scripts\collect_intersection_autopilot_training_windows.bat
-models\current_cuda.pt intersectionAi_v1` to collect CARLA autopilot teacher
+models\current_cuda.pt intersectionAi_v2` to collect CARLA autopilot teacher
 examples over the long spawn-1 intersection approach. It runs small
-lateral/yaw variations, writes `logs\intersectionAi_v1_datasets.txt`, and
+lateral/yaw variations, writes `logs\intersectionAi_v2_datasets.txt`, and
 prints the matching fine-tune command.
+Use `scripts\compare_intersection_ai_vs_model_windows.bat
+models\current_cuda.pt intersectionCompare_v1` to record a same-route CARLA
+teacher run and model-only run, compare junction-frame counts, and write a
+teacher dataset file for fine-tuning.
 
 ### Output to check
 
