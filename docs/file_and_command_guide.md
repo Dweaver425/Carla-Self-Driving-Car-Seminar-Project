@@ -646,9 +646,11 @@ Output to check:
 Use `--traffic-rule-guard` when you want CARLA to assist braking for
 red/yellow lights and stop signs. If the car settles too early at a red light,
 the guard can creep closer to the trigger line, then release leftover braking
-when the light turns green. It does not override model-only braking when no
-active rule is present; fix those false stops with targeted data instead of a
-throttle override.
+when the light turns green. Red/yellow light braking applies before the
+junction; once the car is already inside a junction it should clear the
+intersection unless an obstacle blocks it. It does not override model-only
+braking when no active rule is present; fix those false stops with targeted data
+instead of a throttle override.
 Obstacle braking ignores `traffic.*` actors such as traffic lights, and
 fallback red-light selection is stricter once the car is already inside a
 junction.

@@ -124,6 +124,30 @@ class TrafficRuleGuardTests(unittest.TestCase):
         self.assertEqual(throttle, 0.4)
         self.assertEqual(brake, 0.0)
 
+    def test_red_light_inside_junction_does_not_stop_mid_intersection(self) -> None:
+        controller = make_controller()
+        observation = make_observation(
+            speed_mps=0.0,
+            traffic_rule_details={
+                "traffic_light": {
+                    "id": 16,
+                    "state": "Red",
+                    "forward_distance_m": 17.4,
+                    "source": "fallback_traffic_light_scan",
+                }
+            },
+            is_junction=True,
+        )
+
+        throttle, brake = controller._apply_traffic_rule_guard(
+            observation,
+            throttle=0.12,
+            brake=0.2,
+        )
+
+        self.assertEqual(throttle, 0.12)
+        self.assertEqual(brake, 0.2)
+
     def test_red_light_creeps_when_stopped_short_of_trigger(self) -> None:
         controller = make_controller()
         observation = make_observation(

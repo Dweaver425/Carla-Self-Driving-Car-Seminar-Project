@@ -140,19 +140,20 @@ class ModelController:
         release_for_green_light = False
         if isinstance(traffic_light, dict) and traffic_light.get("state") in {"Red", "Yellow"}:
             forward_distance = float(traffic_light.get("forward_distance_m", 999.0))
-            if (
-                traffic_light.get("state") == "Red"
-                and observation.state.speed_mps < TRAFFIC_LIGHT_CREEP_SPEED_MPS
-                and forward_distance <= TRAFFIC_LIGHT_CREEP_LOOKAHEAD_M
-                and forward_distance > self._traffic_light_stop_target(traffic_light)
-            ):
-                return TRAFFIC_LIGHT_CREEP_THROTTLE, 0.0
-            if self._must_stop_for_rule(
-                observation,
-                forward_distance_m=forward_distance,
-                max_lookahead_m=TRAFFIC_LIGHT_LOOKAHEAD_M,
-            ):
-                return 0.0, max(brake, self._brake_for_rule_stop(observation))
+            if not self._is_junction(observation):
+                if (
+                    traffic_light.get("state") == "Red"
+                    and observation.state.speed_mps < TRAFFIC_LIGHT_CREEP_SPEED_MPS
+                    and forward_distance <= TRAFFIC_LIGHT_CREEP_LOOKAHEAD_M
+                    and forward_distance > self._traffic_light_stop_target(traffic_light)
+                ):
+                    return TRAFFIC_LIGHT_CREEP_THROTTLE, 0.0
+                if self._must_stop_for_rule(
+                    observation,
+                    forward_distance_m=forward_distance,
+                    max_lookahead_m=TRAFFIC_LIGHT_LOOKAHEAD_M,
+                ):
+                    return 0.0, max(brake, self._brake_for_rule_stop(observation))
         elif isinstance(traffic_light, dict) and traffic_light.get("state") == "Green":
             forward_distance = float(traffic_light.get("forward_distance_m", 999.0))
             release_for_green_light = (

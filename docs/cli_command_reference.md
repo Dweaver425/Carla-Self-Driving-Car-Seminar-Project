@@ -453,10 +453,12 @@ off when you want a pure model-only evaluation.
 Use `--traffic-rule-guard` with CARLA when you want a safety assist for
 traffic lights and stop signs. The guard can creep a stopped car closer to a
 red-light trigger line, then release leftover braking when the light turns
-green. It does not override model-only braking when no active rule is present;
-fix those false stops with targeted data instead of a throttle override. Leave
-it off when you want to measure whether the image-only model learned those
-rules by itself.
+green. Red/yellow light braking applies before the junction; once the car is
+already inside a junction it should clear the intersection unless an obstacle
+blocks it. It does not override model-only braking when no active rule is
+present; fix those false stops with targeted data instead of a throttle
+override. Leave it off when you want to measure whether the image-only model
+learned those rules by itself.
 Obstacle braking ignores `traffic.*` actors such as traffic lights, and
 fallback red-light selection is stricter once the car is already inside a
 junction.
