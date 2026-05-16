@@ -39,6 +39,10 @@ LANE_GUARD_JUNCTION_BLEND_SCALE = 0.45
 LANE_GUARD_JUNCTION_GAIN_SCALE = 0.6
 LANE_GUARD_JUNCTION_DEADBAND_OFFSET_M = 0.45
 LANE_GUARD_JUNCTION_DEADBAND_HEADING_DEG = 6.0
+LANE_GUARD_JUNCTION_HEADING_TRUST_OFFSET_M = 0.65
+LANE_GUARD_JUNCTION_UNTRUSTED_HEADING_DEG = 35.0
+LANE_GUARD_JUNCTION_HEADING_STEERING_LIMIT = 0.42
+LANE_GUARD_JUNCTION_HEADING_THROTTLE_LIMIT = 0.22
 LANE_GUARD_JUNCTION_MAX_DELTA = 0.04
 LANE_GUARD_NORMAL_MAX_DELTA = 0.055
 LANE_GUARD_RECOVERY_MAX_DELTA = 0.10
@@ -417,22 +421,35 @@ class ModelController:
         abs_lane_offset = abs(lane_offset)
         abs_heading_error = abs(heading_error)
         is_junction = self._is_junction(observation)
+        heading_untrusted = self._junction_heading_is_untrusted(
+            is_junction=is_junction,
+            abs_lane_offset=abs_lane_offset,
+            abs_heading_error=abs_heading_error,
+        )
+        effective_heading_error = 0.0 if heading_untrusted else heading_error
+        effective_abs_heading_error = abs(effective_heading_error)
+        if heading_untrusted:
+            steering, throttle, brake = self._apply_junction_heading_sanity_limit(
+                steering=steering,
+                throttle=throttle,
+                brake=brake,
+            )
         recovery_needed = (
             abs_lane_offset > LANE_GUARD_RECOVERY_OFFSET_M
-            or abs_heading_error > LANE_GUARD_RECOVERY_HEADING_DEG
+            or effective_abs_heading_error > LANE_GUARD_RECOVERY_HEADING_DEG
         )
         critical_recovery = (
             abs_lane_offset > LANE_GUARD_CRITICAL_OFFSET_M
-            or abs_heading_error > LANE_GUARD_CRITICAL_HEADING_DEG
+            or effective_abs_heading_error > LANE_GUARD_CRITICAL_HEADING_DEG
         )
         if (
             is_junction
             and not recovery_needed
             and abs_lane_offset < LANE_GUARD_JUNCTION_DEADBAND_OFFSET_M
-            and abs_heading_error < LANE_GUARD_JUNCTION_DEADBAND_HEADING_DEG
+            and effective_abs_heading_error < LANE_GUARD_JUNCTION_DEADBAND_HEADING_DEG
         ):
             return steering, throttle, brake
-        if abs_lane_offset < 0.25 and abs_heading_error < 3.0:
+        if abs_lane_offset < 0.25 and effective_abs_heading_error < 3.0:
             return steering, throttle, brake
 
         correction_scale = (
@@ -441,11 +458,11 @@ class ModelController:
             else 1.0
         )
         lane_correction = clamp(
-            correction_scale * ((-0.22 * lane_offset) + (-0.045 * heading_error)),
+            correction_scale * ((-0.22 * lane_offset) + (-0.045 * effective_heading_error)),
             -1.0,
             1.0,
         )
-        severity = max(abs_lane_offset / 1.0, abs_heading_error / 12.0)
+        severity = max(abs_lane_offset / 1.0, effective_abs_heading_error / 12.0)
         blend = clamp(0.15 + (0.2 * severity), 0.0, self.lane_guard_strength)
         if is_junction and not recovery_needed:
             blend *= LANE_GUARD_JUNCTION_BLEND_SCALE
@@ -458,6 +475,12 @@ class ModelController:
             -1.0,
             1.0,
         )
+        if heading_untrusted:
+            guarded_steering, throttle, brake = self._apply_junction_heading_sanity_limit(
+                steering=guarded_steering,
+                throttle=throttle,
+                brake=brake,
+            )
 
         if critical_recovery:
             if observation.state.speed_mps <= LANE_GUARD_RECOVERY_CRAWL_SPEED_MPS:
@@ -503,6 +526,12 @@ class ModelController:
             if observation.lane_offset_m is not None
             else 0.0
         )
+        if self._junction_heading_is_untrusted(
+            is_junction=self._is_junction(observation),
+            abs_lane_offset=abs_lane_offset,
+            abs_heading_error=abs_heading_error,
+        ):
+            abs_heading_error = 0.0
         # Let urgent corrections move faster, but damp frame-to-frame hunting.
         critical_recovery = (
             abs_lane_offset > LANE_GUARD_CRITICAL_OFFSET_M
@@ -540,6 +569,36 @@ class ModelController:
         )
         self._last_steering = smoothed
         return smoothed
+
+    def _junction_heading_is_untrusted(
+        self,
+        *,
+        is_junction: bool,
+        abs_lane_offset: float,
+        abs_heading_error: float,
+    ) -> bool:
+        return (
+            is_junction
+            and abs_lane_offset < LANE_GUARD_JUNCTION_HEADING_TRUST_OFFSET_M
+            and abs_heading_error > LANE_GUARD_JUNCTION_UNTRUSTED_HEADING_DEG
+        )
+
+    def _apply_junction_heading_sanity_limit(
+        self,
+        *,
+        steering: float,
+        throttle: float,
+        brake: float,
+    ) -> tuple[float, float, float]:
+        return (
+            clamp(
+                steering,
+                -LANE_GUARD_JUNCTION_HEADING_STEERING_LIMIT,
+                LANE_GUARD_JUNCTION_HEADING_STEERING_LIMIT,
+            ),
+            min(throttle, LANE_GUARD_JUNCTION_HEADING_THROTTLE_LIMIT),
+            brake,
+        )
 
     def _is_junction(self, observation: DrivingObservation) -> bool:
         lane_details = observation.lane_details

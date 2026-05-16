@@ -65,6 +65,8 @@ sys.modules.setdefault("torch.utils.data", data_stub)
 
 from self_driving.inference import (  # noqa: E402
     LANE_GUARD_JUNCTION_SMOOTHING_BLEND,
+    LANE_GUARD_JUNCTION_HEADING_STEERING_LIMIT,
+    LANE_GUARD_JUNCTION_HEADING_THROTTLE_LIMIT,
     LANE_GUARD_JUNCTION_MAX_DELTA,
     LANE_GUARD_NORMAL_MAX_DELTA,
     LANE_GUARD_RECOVERY_MAX_DELTA,
@@ -154,6 +156,27 @@ class LaneGuardTests(unittest.TestCase):
         self.assertEqual(throttle, 0.7)
         self.assertEqual(brake, 0.0)
 
+    def test_junction_heading_only_spike_does_not_force_u_turn(self) -> None:
+        controller = make_controller()
+        observation = make_observation(
+            lane_offset_m=0.06,
+            heading_error_deg=107.0,
+            is_junction=True,
+            speed_mps=5.0,
+        )
+
+        steering, throttle, brake = controller._apply_lane_guard(
+            observation,
+            steering=-0.8,
+            throttle=0.6,
+            brake=0.0,
+        )
+
+        self.assertGreaterEqual(steering, -LANE_GUARD_JUNCTION_HEADING_STEERING_LIMIT)
+        self.assertLessEqual(steering, LANE_GUARD_JUNCTION_HEADING_STEERING_LIMIT)
+        self.assertLessEqual(throttle, LANE_GUARD_JUNCTION_HEADING_THROTTLE_LIMIT)
+        self.assertEqual(brake, 0.0)
+
     def test_junction_steering_smoothing_uses_smaller_delta(self) -> None:
         controller = make_controller()
         controller._last_steering = 0.0
@@ -168,6 +191,22 @@ class LaneGuardTests(unittest.TestCase):
         self.assertAlmostEqual(
             steering,
             LANE_GUARD_JUNCTION_MAX_DELTA * LANE_GUARD_JUNCTION_SMOOTHING_BLEND,
+        )
+
+    def test_junction_heading_only_spike_uses_junction_smoothing(self) -> None:
+        controller = make_controller()
+        controller._last_steering = 0.0
+        observation = make_observation(
+            lane_offset_m=0.06,
+            heading_error_deg=107.0,
+            is_junction=True,
+        )
+
+        steering = controller._smooth_guarded_steering(-1.0, observation)
+
+        self.assertAlmostEqual(
+            steering,
+            -(LANE_GUARD_JUNCTION_MAX_DELTA * LANE_GUARD_JUNCTION_SMOOTHING_BLEND),
         )
 
     def test_large_lane_error_overrides_bad_model_turn_and_slows_down(self) -> None:
