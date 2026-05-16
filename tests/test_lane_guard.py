@@ -16,6 +16,15 @@ torch_stub.from_numpy = lambda array: array
 torch_stub.load = lambda *args, **kwargs: {}
 torch_stub.no_grad = lambda: None
 
+
+class Tensor:
+    @classmethod
+    def __class_getitem__(cls, item):
+        return cls
+
+
+torch_stub.Tensor = Tensor
+
 nn_stub = types.ModuleType("torch.nn")
 
 
@@ -32,8 +41,27 @@ nn_stub.Flatten = lambda *args, **kwargs: None
 nn_stub.Linear = lambda *args, **kwargs: None
 torch_stub.nn = nn_stub
 
+utils_stub = types.ModuleType("torch.utils")
+data_stub = types.ModuleType("torch.utils.data")
+
+
+class Dataset:
+    @classmethod
+    def __class_getitem__(cls, item):
+        return cls
+
+
+data_stub.ConcatDataset = lambda *args, **kwargs: None
+data_stub.DataLoader = lambda *args, **kwargs: None
+data_stub.Dataset = Dataset
+data_stub.random_split = lambda *args, **kwargs: []
+utils_stub.data = data_stub
+torch_stub.utils = utils_stub
+
 sys.modules.setdefault("torch", torch_stub)
 sys.modules.setdefault("torch.nn", nn_stub)
+sys.modules.setdefault("torch.utils", utils_stub)
+sys.modules.setdefault("torch.utils.data", data_stub)
 
 from self_driving.inference import (  # noqa: E402
     LANE_GUARD_JUNCTION_SMOOTHING_BLEND,

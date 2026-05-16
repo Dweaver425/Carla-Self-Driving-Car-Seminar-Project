@@ -453,8 +453,9 @@ guard crawls slowly so the steering can pull it back into the lane. Leave it
 off when you want a pure model-only evaluation.
 Use `--traffic-rule-guard` with CARLA when you want a safety assist for
 traffic lights and stop signs. The guard can creep a stopped car closer to a
-red-light trigger line, release leftover braking when the light turns green,
-and launch gently after a completed stop-sign hold. Red/yellow light braking
+red-light trigger line or the near stop-sign trigger edge, release leftover
+braking when the light turns green, and launch gently after a completed
+stop-sign hold. Red/yellow light braking
 applies before the junction; once the car is already inside a junction it
 should clear the intersection unless an obstacle blocks it. It does not
 override model-only braking when no active rule is
@@ -469,6 +470,11 @@ If the visible light or stop sign disagrees with the log, inspect
 `traffic_rule_details.traffic_light.source` or
 `traffic_rule_details.stop_sign.source`, plus `id`, `road_id`, and `lane_id`,
 to confirm which CARLA actor was selected.
+Use `scripts\collect_intersection_autopilot_training_windows.bat
+models\current_cuda.pt intersectionAi_v1` to collect CARLA autopilot teacher
+examples over the long spawn-1 intersection approach. It runs small
+lateral/yaw variations, writes `logs\intersectionAi_v1_datasets.txt`, and
+prints the matching fine-tune command.
 
 ### Output to check
 

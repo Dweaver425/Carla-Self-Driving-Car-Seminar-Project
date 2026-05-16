@@ -25,6 +25,12 @@ STOP_SIGN_STOPPED_SPEED_MPS = 0.08
 STOP_SIGN_RELEASE_SPEED_MPS = 0.75
 STOP_SIGN_RELEASE_THROTTLE = 0.42
 STOP_SIGN_TRIGGER_MARGIN_M = 0.5
+STOP_SIGN_DEFAULT_STOP_TARGET_M = 1.0
+STOP_SIGN_TRIGGER_STOP_MARGIN_M = 0.25
+STOP_SIGN_LINE_TARGET_TOLERANCE_M = 0.05
+STOP_SIGN_LINE_CREEP_SPEED_MPS = 1.0
+STOP_SIGN_LINE_CREEP_THROTTLE = 0.12
+STOP_SIGN_LINE_BRAKE_BUFFER_M = 1.0
 OBSTACLE_GUARD_SLOW_DISTANCE_M = 5.0
 OBSTACLE_GUARD_BRAKE_DISTANCE_M = 2.5
 OBSTACLE_GUARD_IGNORED_TYPE_PREFIXES = ("traffic.", "static.static", "static.vegetation")
@@ -196,14 +202,16 @@ class ModelController:
             )
 
         already_committed = self._active_stop_sign_id == stop_id
+        inside_stop_trigger = self._is_inside_stop_sign_trigger(
+            stop_sign,
+            forward_distance_m=forward_distance,
+        )
+        stop_line_target_m = self._stop_sign_stop_target(stop_sign)
         must_stop = self._must_stop_for_rule(
             observation,
             forward_distance_m=forward_distance,
             max_lookahead_m=STOP_SIGN_LOOKAHEAD_M,
-        ) or self._is_inside_stop_sign_trigger(
-            stop_sign,
-            forward_distance_m=forward_distance,
-        )
+        ) or inside_stop_trigger
         still_finishing_committed_stop = (
             already_committed
             and forward_distance >= -STOP_SIGN_COMMITTED_PAST_BUFFER_M
@@ -219,10 +227,23 @@ class ModelController:
             self._active_stop_sign_id = stop_id
             self._stop_hold_steps = 0
 
+        if self._should_creep_to_stop_sign_line(
+            observation,
+            forward_distance_m=forward_distance,
+            stop_line_target_m=stop_line_target_m,
+            inside_stop_trigger=inside_stop_trigger,
+        ):
+            self._stop_hold_steps = 0
+            return STOP_SIGN_LINE_CREEP_THROTTLE, 0.0
+
         if observation.state.speed_mps > STOP_SIGN_STOPPED_SPEED_MPS:
             self._stop_hold_steps = 0
             rule_brake = self._brake_for_rule_stop(observation)
-            if forward_distance <= STOP_SIGN_HARD_BRAKE_DISTANCE_M:
+            hard_brake_distance = max(
+                STOP_SIGN_HARD_BRAKE_DISTANCE_M,
+                stop_line_target_m + STOP_SIGN_LINE_BRAKE_BUFFER_M,
+            )
+            if forward_distance <= hard_brake_distance:
                 rule_brake = 1.0
             return 0.0, max(brake, rule_brake)
 
@@ -306,6 +327,31 @@ class ModelController:
         if observation.state.speed_mps <= STOP_SIGN_RELEASE_SPEED_MPS or brake > 0.0:
             return max(throttle, STOP_SIGN_RELEASE_THROTTLE), 0.0
         return throttle, brake
+
+    def _stop_sign_stop_target(self, stop_sign: dict[str, object]) -> float:
+        trigger_min = stop_sign.get("trigger_min_forward_m")
+        try:
+            trigger_min_m = float(trigger_min)
+        except (TypeError, ValueError):
+            return STOP_SIGN_DEFAULT_STOP_TARGET_M
+
+        if trigger_min_m <= 0.0:
+            return STOP_SIGN_DEFAULT_STOP_TARGET_M
+        return max(trigger_min_m - STOP_SIGN_TRIGGER_STOP_MARGIN_M, STOP_SIGN_DEFAULT_STOP_TARGET_M)
+
+    def _should_creep_to_stop_sign_line(
+        self,
+        observation: DrivingObservation,
+        *,
+        forward_distance_m: float,
+        stop_line_target_m: float,
+        inside_stop_trigger: bool,
+    ) -> bool:
+        if not inside_stop_trigger:
+            return False
+        if observation.state.speed_mps > STOP_SIGN_LINE_CREEP_SPEED_MPS:
+            return False
+        return forward_distance_m > stop_line_target_m + STOP_SIGN_LINE_TARGET_TOLERANCE_M
 
     def _is_inside_stop_sign_trigger(
         self,

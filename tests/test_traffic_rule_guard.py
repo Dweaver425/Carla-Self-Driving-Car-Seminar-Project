@@ -16,6 +16,15 @@ torch_stub.from_numpy = lambda array: array
 torch_stub.load = lambda *args, **kwargs: {}
 torch_stub.no_grad = lambda: None
 
+
+class Tensor:
+    @classmethod
+    def __class_getitem__(cls, item):
+        return cls
+
+
+torch_stub.Tensor = Tensor
+
 nn_stub = types.ModuleType("torch.nn")
 
 
@@ -32,12 +41,32 @@ nn_stub.Flatten = lambda *args, **kwargs: None
 nn_stub.Linear = lambda *args, **kwargs: None
 torch_stub.nn = nn_stub
 
+utils_stub = types.ModuleType("torch.utils")
+data_stub = types.ModuleType("torch.utils.data")
+
+
+class Dataset:
+    @classmethod
+    def __class_getitem__(cls, item):
+        return cls
+
+
+data_stub.ConcatDataset = lambda *args, **kwargs: None
+data_stub.DataLoader = lambda *args, **kwargs: None
+data_stub.Dataset = Dataset
+data_stub.random_split = lambda *args, **kwargs: []
+utils_stub.data = data_stub
+torch_stub.utils = utils_stub
+
 sys.modules.setdefault("torch", torch_stub)
 sys.modules.setdefault("torch.nn", nn_stub)
+sys.modules.setdefault("torch.utils", utils_stub)
+sys.modules.setdefault("torch.utils.data", data_stub)
 
 from self_driving.inference import (
     ModelController,
     STOP_HOLD_STEPS,
+    STOP_SIGN_LINE_CREEP_THROTTLE,
     STOP_SIGN_RELEASE_THROTTLE,
     STOP_SIGN_STOPPED_SPEED_MPS,
     TRAFFIC_LIGHT_CREEP_THROTTLE,
@@ -335,7 +364,7 @@ class TrafficRuleGuardTests(unittest.TestCase):
         self.assertEqual(brake, 0.0)
         self.assertIn(7, controller._cleared_stop_sign_ids)
 
-    def test_stop_sign_release_clears_model_brake_after_full_hold(self) -> None:
+    def test_stop_sign_creeps_to_trigger_line_before_holding(self) -> None:
         controller = make_controller()
         observation = make_observation(
             speed_mps=0.0,
@@ -344,6 +373,31 @@ class TrafficRuleGuardTests(unittest.TestCase):
                     "id": 7,
                     "state": "Stop",
                     "forward_distance_m": 9.0,
+                    "trigger_min_forward_m": 8.8,
+                    "trigger_max_forward_m": 11.2,
+                }
+            },
+        )
+
+        throttle, brake = controller._apply_traffic_rule_guard(
+            observation,
+            throttle=0.0,
+            brake=0.3,
+        )
+
+        self.assertEqual(throttle, STOP_SIGN_LINE_CREEP_THROTTLE)
+        self.assertEqual(brake, 0.0)
+        self.assertEqual(controller._stop_hold_steps, 0)
+
+    def test_stop_sign_release_clears_model_brake_after_full_hold(self) -> None:
+        controller = make_controller()
+        observation = make_observation(
+            speed_mps=0.0,
+            traffic_rule_details={
+                "stop_sign": {
+                    "id": 7,
+                    "state": "Stop",
+                    "forward_distance_m": 8.5,
                     "trigger_min_forward_m": 8.8,
                     "trigger_max_forward_m": 11.2,
                 }

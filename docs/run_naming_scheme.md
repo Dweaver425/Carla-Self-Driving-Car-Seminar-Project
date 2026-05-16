@@ -80,5 +80,11 @@ Run a targeted stop-sign comparison:
 scripts\collect_stop_sign_targeted_compare_windows.bat models\5hr2cars_v1_cuda.pt stopSigns_v1
 ```
 
+Run a targeted CARLA-autopilot intersection collection:
+
+```bat
+scripts\collect_intersection_autopilot_training_windows.bat models\5hr2cars_v1_cuda.pt intersectionAi_v1
+```
+
 If a named folder already exists, the scripts stop and ask you to use the next
 version name.

@@ -644,10 +644,11 @@ Output to check:
 - `average_abs_control_delta` when using `--autopilot-guide`
 
 Use `--traffic-rule-guard` when you want CARLA to assist braking for
-red/yellow lights and stop signs. If the car settles too early at a red light,
-the guard can creep closer to the trigger line, then release leftover braking
-when the light turns green. After a completed stop-sign hold, it also launches
-gently so model brake does not pin the car in place. Red/yellow light braking
+red/yellow lights and stop signs. If the car settles too early at a red light
+or stop sign, the guard can creep closer to the trigger line, then release
+leftover braking when the light turns green. After a completed stop-sign hold,
+it also launches gently so model brake does not pin the car in place.
+Red/yellow light braking
 applies before the junction; once the car is already inside a junction it
 should clear the intersection unless an obstacle blocks it. It does not
 override model-only braking when no active rule is present; fix those false
@@ -665,6 +666,16 @@ If the visible light or stop sign disagrees with the logged state, check
 `traffic_rule_details.traffic_light.source` or
 `traffic_rule_details.stop_sign.source`, plus `id`, `road_id`, and `lane_id`,
 to see which CARLA actor was selected.
+
+For the long spawn-1 intersection where the model drifts late in the run, use:
+
+```bat
+scripts\collect_intersection_autopilot_training_windows.bat models\current_cuda.pt intersectionAi_v1
+```
+
+The script lets CARLA autopilot drive, logs your checkpoint predictions in the
+background, writes `logs\intersectionAi_v1_datasets.txt`, and prints a matching
+fine-tune command.
 
 ### Start the fleet server
 
