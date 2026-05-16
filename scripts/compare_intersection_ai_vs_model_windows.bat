@@ -1,5 +1,5 @@
 @echo off
-setlocal EnableExtensions
+setlocal EnableExtensions EnableDelayedExpansion
 
 rem Record one CARLA autopilot teacher run and one model run, then compare
 rem how many frames each spends inside junctions.
@@ -42,12 +42,23 @@ if exist "%RUN_ROOT%" (
     if not exist "%TEACHER_OUT%\metadata.json" (
         echo Run folder already exists without a completed teacher episode: %RUN_ROOT%
         echo Use the next version name, for example intersectionCompare_v3.
-        exit /b 1
+        goto :fail
     )
     findstr /C:"\"status\": \"completed\"" "%TEACHER_OUT%\metadata.json" >nul
     if errorlevel 1 (
         echo Existing teacher episode is not completed: %TEACHER_OUT%
-        exit /b 1
+        goto :fail
+    )
+    if not exist "%TEACHER_OUT%\manifest.jsonl" (
+        echo Existing teacher episode has no manifest: %TEACHER_OUT%
+        echo Use a new run name or remove the bad folder after saving anything you need.
+        goto :fail
+    )
+    for %%F in ("%TEACHER_OUT%\manifest.jsonl") do set "TEACHER_MANIFEST_BYTES=%%~zF"
+    if !TEACHER_MANIFEST_BYTES! LEQ 0 (
+        echo Existing teacher episode has an empty manifest: %TEACHER_OUT%
+        echo Use a new run name or remove the bad folder after saving anything you need.
+        goto :fail
     )
     set "REUSE_TEACHER=1"
 
@@ -55,7 +66,18 @@ if exist "%RUN_ROOT%" (
         findstr /C:"\"status\": \"completed\"" "%MODEL_OUT%\metadata.json" >nul
         if errorlevel 1 (
             echo Existing model episode is not completed: %MODEL_OUT%
-            exit /b 1
+            goto :fail
+        )
+        if not exist "%MODEL_OUT%\manifest.jsonl" (
+            echo Existing model episode has no manifest: %MODEL_OUT%
+            echo Use a new run name or remove the bad folder after saving anything you need.
+            goto :fail
+        )
+        for %%F in ("%MODEL_OUT%\manifest.jsonl") do set "MODEL_MANIFEST_BYTES=%%~zF"
+        if !MODEL_MANIFEST_BYTES! LEQ 0 (
+            echo Existing model episode has an empty manifest: %MODEL_OUT%
+            echo Use a new run name or remove the bad folder after saving anything you need.
+            goto :fail
         )
         set "REUSE_MODEL=1"
     )
@@ -108,3 +130,6 @@ echo.
 echo Suggested fine-tune command:
 echo py -3.12 main.py train --init-checkpoint "%CHECKPOINT%" --dataset-file "%TEACHER_DATASET%" --output "%OUTPUT_CHECKPOINT%" --device cuda --epochs 2 --batch-size 512 --num-workers 10 --learning-rate 0.00001 --val-split 0.1 --log-interval 50
 exit /b 0
+
+:fail
+exit /b 1

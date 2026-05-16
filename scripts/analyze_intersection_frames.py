@@ -71,6 +71,11 @@ def is_completed_episode(path: Path) -> bool:
     return metadata.get("status") in {None, "completed"}
 
 
+def has_manifest_records(path: Path) -> bool:
+    manifest_path = path / "manifest.jsonl"
+    return manifest_path.exists() and manifest_path.stat().st_size > 0
+
+
 def frame_number(record: dict[str, Any], fallback: int) -> int:
     value = record.get("frame")
     return int(value) if isinstance(value, int) else fallback
@@ -297,15 +302,22 @@ def summarize_episode(
 
 
 def summarize_root(root: Path, *, top_k: int) -> dict[str, Any]:
-    episode_dirs = [
+    candidate_episode_dirs = [
         path
         for path in discover_episode_dirs(root)
         if is_completed_episode(path)
+        and has_manifest_records(path)
     ]
-    if not episode_dirs:
-        raise SystemExit(f"No completed manifest datasets found under {root}")
+    if not candidate_episode_dirs:
+        raise SystemExit(f"No completed non-empty manifest datasets found under {root}")
 
-    episodes = [summarize_episode(path, root=root, top_k=top_k) for path in episode_dirs]
+    episodes = [
+        item
+        for path in candidate_episode_dirs
+        if int((item := summarize_episode(path, root=root, top_k=top_k))["records_scanned"]) > 0
+    ]
+    if not episodes:
+        raise SystemExit(f"No valid records found in completed manifest datasets under {root}")
     records = sum(int(item["records_scanned"]) for item in episodes)
     junction_frames = sum(int(item["junction_frames"]) for item in episodes)
     requested_records = sum(int(item["records_with_requested_control"]) for item in episodes)
@@ -456,6 +468,12 @@ def main() -> None:
             for item in teacher_summary["episodes"]
             if int(item["junction_frames"]) >= args.min_junction_frames
         ]
+        if not train_paths:
+            raise SystemExit(
+                "No teacher episodes had at least "
+                f"{args.min_junction_frames} junction frame(s); not writing an empty "
+                "training dataset file."
+            )
         args.write_teacher_dataset.parent.mkdir(parents=True, exist_ok=True)
         args.write_teacher_dataset.write_text(
             "".join(f"{path}\n" for path in train_paths),
