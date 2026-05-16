@@ -22,6 +22,12 @@ STOP_SIGN_LOOKAHEAD_M = 20.0
 STOP_SIGN_COMMITTED_PAST_BUFFER_M = 8.0
 STOP_SIGN_HARD_BRAKE_DISTANCE_M = 6.0
 STOP_SIGN_STOPPED_SPEED_MPS = 0.08
+LANE_GUARD_JUNCTION_BLEND_SCALE = 0.45
+LANE_GUARD_JUNCTION_GAIN_SCALE = 0.6
+LANE_GUARD_JUNCTION_DEADBAND_OFFSET_M = 0.45
+LANE_GUARD_JUNCTION_DEADBAND_HEADING_DEG = 6.0
+LANE_GUARD_JUNCTION_MAX_DELTA = 0.04
+LANE_GUARD_JUNCTION_URGENT_MAX_DELTA = 0.08
 
 
 class ModelController:
@@ -267,23 +273,36 @@ class ModelController:
         heading_error = float(observation.heading_error_deg)
         abs_lane_offset = abs(lane_offset)
         abs_heading_error = abs(heading_error)
+        is_junction = self._is_junction(observation)
+        if (
+            is_junction
+            and abs_lane_offset < LANE_GUARD_JUNCTION_DEADBAND_OFFSET_M
+            and abs_heading_error < LANE_GUARD_JUNCTION_DEADBAND_HEADING_DEG
+        ):
+            return steering, throttle, brake
         if abs_lane_offset < 0.25 and abs_heading_error < 3.0:
             return steering, throttle, brake
 
+        correction_scale = LANE_GUARD_JUNCTION_GAIN_SCALE if is_junction else 1.0
         lane_correction = clamp(
-            (-0.22 * lane_offset) + (-0.045 * heading_error),
+            correction_scale * ((-0.22 * lane_offset) + (-0.045 * heading_error)),
             -1.0,
             1.0,
         )
         severity = max(abs_lane_offset / 1.0, abs_heading_error / 12.0)
         blend = clamp(0.15 + (0.2 * severity), 0.0, self.lane_guard_strength)
+        if is_junction:
+            blend *= LANE_GUARD_JUNCTION_BLEND_SCALE
         guarded_steering = clamp(
             ((1.0 - blend) * steering) + (blend * lane_correction),
             -1.0,
             1.0,
         )
 
-        if abs_lane_offset > 0.9 or abs_heading_error > 14.0:
+        slow_for_lane_error = abs_lane_offset > 0.9 or abs_heading_error > 14.0
+        if is_junction:
+            slow_for_lane_error = abs_lane_offset > 1.2 or abs_heading_error > 20.0
+        if slow_for_lane_error:
             throttle = min(throttle, 0.25)
             brake = max(brake, 0.08)
 
@@ -309,11 +328,20 @@ class ModelController:
             else 0.0
         )
         # Let urgent corrections move faster, but damp small frame-to-frame jitter.
-        max_delta = 0.06
-        if abs_lane_offset > 0.75 or abs_heading_error > 10.0:
-            max_delta = 0.11
+        if self._is_junction(observation):
+            max_delta = LANE_GUARD_JUNCTION_MAX_DELTA
+            if abs_lane_offset > 0.9 or abs_heading_error > 14.0:
+                max_delta = LANE_GUARD_JUNCTION_URGENT_MAX_DELTA
+        else:
+            max_delta = 0.06
+            if abs_lane_offset > 0.75 or abs_heading_error > 10.0:
+                max_delta = 0.11
 
         delta = clamp(steering - self._last_steering, -max_delta, max_delta)
         smoothed = clamp(self._last_steering + delta, -1.0, 1.0)
         self._last_steering = smoothed
         return smoothed
+
+    def _is_junction(self, observation: DrivingObservation) -> bool:
+        lane_details = observation.lane_details
+        return isinstance(lane_details, dict) and bool(lane_details.get("is_junction"))

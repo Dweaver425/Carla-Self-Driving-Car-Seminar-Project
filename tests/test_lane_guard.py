@@ -1,0 +1,137 @@
+from __future__ import annotations
+
+import sys
+import types
+import unittest
+
+import numpy as np
+
+torch_stub = types.ModuleType("torch")
+torch_stub.backends = types.SimpleNamespace(
+    mps=types.SimpleNamespace(is_available=lambda: False)
+)
+torch_stub.cuda = types.SimpleNamespace(is_available=lambda: False)
+torch_stub.device = lambda name: name
+torch_stub.from_numpy = lambda array: array
+torch_stub.load = lambda *args, **kwargs: {}
+torch_stub.no_grad = lambda: None
+
+nn_stub = types.ModuleType("torch.nn")
+
+
+class Module:
+    pass
+
+
+nn_stub.Module = Module
+nn_stub.Sequential = lambda *args, **kwargs: None
+nn_stub.Conv2d = lambda *args, **kwargs: None
+nn_stub.ReLU = lambda *args, **kwargs: None
+nn_stub.AdaptiveAvgPool2d = lambda *args, **kwargs: None
+nn_stub.Flatten = lambda *args, **kwargs: None
+nn_stub.Linear = lambda *args, **kwargs: None
+torch_stub.nn = nn_stub
+
+sys.modules.setdefault("torch", torch_stub)
+sys.modules.setdefault("torch.nn", nn_stub)
+
+from self_driving.inference import (  # noqa: E402
+    LANE_GUARD_JUNCTION_MAX_DELTA,
+    ModelController,
+)
+from self_driving.types import ControlCommand, DrivingObservation, Pose2D, VehicleState  # noqa: E402
+
+
+def make_controller() -> ModelController:
+    controller = ModelController.__new__(ModelController)
+    controller.lane_guard_strength = 0.35
+    controller._last_steering = None
+    return controller
+
+
+def make_observation(
+    *,
+    lane_offset_m: float,
+    heading_error_deg: float,
+    is_junction: bool,
+) -> DrivingObservation:
+    return DrivingObservation(
+        state=VehicleState(
+            vehicle_id="ego-test",
+            timestamp=0.0,
+            pose=Pose2D(),
+            speed_mps=4.0,
+            control=ControlCommand(),
+        ),
+        front_camera_rgb=np.zeros((2, 2, 3), dtype=np.uint8),
+        lane_offset_m=lane_offset_m,
+        heading_error_deg=heading_error_deg,
+        lane_details={"is_junction": is_junction},
+    )
+
+
+class LaneGuardTests(unittest.TestCase):
+    def test_junction_lane_guard_is_softer_than_regular_lane_guard(self) -> None:
+        controller = make_controller()
+        road_observation = make_observation(
+            lane_offset_m=0.6,
+            heading_error_deg=8.0,
+            is_junction=False,
+        )
+        junction_observation = make_observation(
+            lane_offset_m=0.6,
+            heading_error_deg=8.0,
+            is_junction=True,
+        )
+
+        road_steering, _, _ = controller._apply_lane_guard(
+            road_observation,
+            steering=0.5,
+            throttle=0.7,
+            brake=0.0,
+        )
+        junction_steering, _, _ = controller._apply_lane_guard(
+            junction_observation,
+            steering=0.5,
+            throttle=0.7,
+            brake=0.0,
+        )
+
+        self.assertLess(road_steering, junction_steering)
+        self.assertLess(junction_steering, 0.5)
+
+    def test_junction_small_errors_do_not_override_model_steering(self) -> None:
+        controller = make_controller()
+        observation = make_observation(
+            lane_offset_m=0.35,
+            heading_error_deg=4.0,
+            is_junction=True,
+        )
+
+        steering, throttle, brake = controller._apply_lane_guard(
+            observation,
+            steering=0.2,
+            throttle=0.7,
+            brake=0.0,
+        )
+
+        self.assertEqual(steering, 0.2)
+        self.assertEqual(throttle, 0.7)
+        self.assertEqual(brake, 0.0)
+
+    def test_junction_steering_smoothing_uses_smaller_delta(self) -> None:
+        controller = make_controller()
+        controller._last_steering = 0.0
+        observation = make_observation(
+            lane_offset_m=0.4,
+            heading_error_deg=5.0,
+            is_junction=True,
+        )
+
+        steering = controller._smooth_guarded_steering(0.2, observation)
+
+        self.assertEqual(steering, LANE_GUARD_JUNCTION_MAX_DELTA)
+
+
+if __name__ == "__main__":
+    unittest.main()
