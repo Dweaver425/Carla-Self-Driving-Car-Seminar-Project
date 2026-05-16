@@ -652,9 +652,10 @@ applies before the junction; once the car is already inside a junction it
 should clear the intersection unless an obstacle blocks it. It does not
 override model-only braking when no active rule is present; fix those false
 stops with targeted data instead of a throttle override.
-Obstacle braking ignores `traffic.*` actors such as traffic lights and
-`static.vegetation` scenery such as median trees, and fallback red-light
-selection is stricter once the car is already inside a junction.
+Obstacle braking ignores `traffic.*` actors such as traffic lights plus
+`static.static` and `static.vegetation` scenery near intersections, and
+fallback red-light selection is stricter once the car is already inside a
+junction.
 Use `--lane-guard` to steady the live demo. It dampens small steering
 corrections inside junctions, rate-limits steering changes to reduce
 zigzagging, and applies stronger recovery steering while slowing the car when

@@ -282,6 +282,27 @@ class TrafficRuleGuardTests(unittest.TestCase):
         self.assertEqual(throttle, 0.14)
         self.assertEqual(brake, 0.0)
 
+    def test_obstacle_guard_ignores_static_scenery_actor(self) -> None:
+        controller = make_controller()
+        observation = make_observation(
+            speed_mps=0.0,
+            traffic_rule_details=None,
+            is_junction=True,
+            obstacle_details={
+                "distance_m": 4.65,
+                "other_actor": {"type_id": "static.static"},
+            },
+        )
+
+        throttle, brake = controller._apply_obstacle_guard(
+            observation,
+            throttle=0.14,
+            brake=0.0,
+        )
+
+        self.assertEqual(throttle, 0.14)
+        self.assertEqual(brake, 0.0)
+
     def test_stop_sign_requires_full_hold_before_clear(self) -> None:
         controller = make_controller()
         observation = make_observation(
