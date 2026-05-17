@@ -65,8 +65,17 @@ def resolve_episode_path(episode_root: Path, value: str) -> Path:
     return episode_root / path
 
 
-def safe_source_name(path: Path) -> str:
-    return path.name.replace(" ", "_").replace("/", "_").replace("\\", "_")
+def safe_source_name(path: Path, *, episode_root: Path) -> str:
+    try:
+        value = str(path.resolve().relative_to(episode_root.resolve()))
+    except ValueError:
+        value = str(path.resolve())
+    return (
+        value.replace(":", "")
+        .replace(" ", "_")
+        .replace("/", "_")
+        .replace("\\", "_")
+    )
 
 
 def discover_sources(episode_root: Path, episode_file: Path) -> list[EpisodeSource]:
@@ -90,7 +99,7 @@ def discover_sources(episode_root: Path, episode_file: Path) -> list[EpisodeSour
         sources.append(
             EpisodeSource(
                 chunk_name="episode",
-                vehicle_name=safe_source_name(path),
+                vehicle_name=safe_source_name(path, episode_root=episode_root),
                 path=path,
             )
         )
