@@ -5,7 +5,7 @@
 This project is part of a Seminar research  at William Paterson University focused on autonomous driving systems. The current research team includes:
 
 - Dylan Weaver
-- Michael
+- Michael Aliles
 
 The project also connects strongly with Dylan Weaver's broader interest in artificial intelligence, machine learning, embedded systems, and long-term graduate research.
 
