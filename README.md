@@ -32,17 +32,36 @@ The software pipeline is working end-to-end:
 
 The latest public checkpoint in this repository is:
 
-- `models/teacherRefined_v1_cuda.pt`
+- `models/final_carla_imitation_all_cuda.pt`
 
-It was fine-tuned from `models/laneRecovery_v1_cuda.pt` using seven CARLA
-teacher/recovery datasets, CUDA mixed-precision training, `136000` total
-samples, and a `0.1` validation split. Older checkpoints remain useful for
-comparison, but the refined teacher checkpoint is the current recommended
-CARLA model.
+It was fine-tuned from `models/stopSignHard_v2_blend_cuda.pt` using the
+weighted CARLA-imitation TAR-shard list in
+`logs/carla_imitation_all_available_weighted_datasets.txt`. The final CUDA run
+used `16,224,353` samples, `2` epochs, batch size `512`, `6` DataLoader
+workers, mixed precision, and a low learning rate of `0.000005`. The final
+recorded losses were `0.007642932119181981` train and
+`0.00737966807321996` validation.
+
+Important public comparison checkpoints:
+
+- `models/teacherRefined_v1_cuda.pt`: earlier CARLA teacher/recovery model.
+- `models/stopSignHard_v2_blend_cuda.pt`: best pre-final blend checkpoint and
+  the initialization point for the final weighted model.
+- `models/final_carla_imitation_all_cuda.pt`: current recommended CARLA model.
+
+Older checkpoints remain useful for comparison, but the final CARLA-imitation
+checkpoint is the current recommended model. It is much better in recovery and
+lane holding than early runs, but it is still not perfect: slight twitchiness,
+cautious speed, and rare intersection/stop-sign cases remain active research
+limitations.
+
+The checkpoint summary is maintained in
+[docs/MODEL_CHECKPOINTS_2026-05-22.md](docs/MODEL_CHECKPOINTS_2026-05-22.md).
 
 Current limitations:
 
 - driving quality is still strongly dependent on dataset quality and coverage
+- even about 1TB of project data did not remove rare-case behavior gaps
 - collision advisories are generated centrally, but not yet fused directly into vehicle control
 - the mock backend is useful for software validation, but CARLA remains the real evaluation target
 
@@ -135,7 +154,7 @@ if the global Windows Python Launcher is not installed.
 
 Long timestamped folders still work, but active CARLA collection workflows also
 accept short run names such as `10hr2cars_v1`, `5hr2cars_v2`, and
-`stopSigns_v1`. The run name is reused for `data\episodes`, `data\raw` TAR
+`stopSigns_v1`. The run name is reused for `data\episodes`, `data\tar_shards` TAR
 shards, `models`, and `logs` so each chunk stays easy to track.
 
 See [docs/run_naming_scheme.md](docs/run_naming_scheme.md) for copy-paste
@@ -595,7 +614,7 @@ shared mapping / paging-file headroom for DataLoader workers. Re-run with fewer
 workers first, then lower batch size if needed:
 
 ```bat
-set LEARNING_RATE=0.00001&& set EPOCHS=2&& set BATCH_SIZE=512&& set NUM_WORKERS=4&& scripts\train_tar_shards_fast_windows.bat data\raw\10hr2cars_v1_tar_shards\10hr2cars_v1_datasets.txt models\10hr2cars_v1_cuda.pt models\10hr2cars_v2_cuda.pt
+set LEARNING_RATE=0.00001&& set EPOCHS=2&& set BATCH_SIZE=512&& set NUM_WORKERS=4&& scripts\train_tar_shards_fast_windows.bat data\tar_shards\10hr2cars_v1_tar_shards\10hr2cars_v1_datasets.txt models\10hr2cars_v1_cuda.pt models\10hr2cars_v2_cuda.pt
 ```
 
 ## Using CARLA Traffic With This Project

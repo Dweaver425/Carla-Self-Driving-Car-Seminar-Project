@@ -16,3 +16,5 @@ __pycache__/
 /models/*
 !/models/allData_v1_mps.pt
 !/models/teacherRefined_v1_cuda.pt
+!/models/stopSignHard_v2_blend_cuda.pt
+!/models/final_carla_imitation_all_cuda.pt
