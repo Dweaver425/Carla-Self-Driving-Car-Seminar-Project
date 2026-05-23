@@ -78,7 +78,7 @@ That makes the project a strong fit for research on cooperative collision awaren
 This repository is part of a Seminar research project at William Paterson University. The current team is:
 
 - Dylan Weaver
-- Michael
+- Michael Aviles
 
 The repository currently focuses on the software side of the work:
 
